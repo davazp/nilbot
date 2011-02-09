@@ -97,7 +97,7 @@
 
 (define-command software ()
     ((:documentation "Show information about the software."))
-  (response "Operative system: ~a ~a"
+  (response "Software: ~a ~a"
             (software-type)
             (software-version)))
 

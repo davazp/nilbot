@@ -1,9 +1,6 @@
 ;;                                                               -*- Lisp -*-
 ;; taskbot-system.lisp --
 ;;
-;; Time-stamp: <2011-02-09 22:37:52 davazp>
-;; Author: David Vazquez <davazp@es.gnu.org>
-;;
 ;; Copyright (C) 2009,2011 David Vazquez
 ;;
 ;; This program is free software: you can redistribute it and/or modify

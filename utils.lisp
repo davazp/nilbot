@@ -2,7 +2,7 @@
 ;; utils.lisp -- Common utilities functions and macros
 ;;
 ;; Copyright (C) 2009,2011 David Vazquez
-;; Copyright (C) 2010,2010 Mario Castelan Castro
+;; Copyright (C) 2010,2011 Mario Castelan Castro
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by

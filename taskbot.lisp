@@ -1,9 +1,6 @@
 ;;                                                               -*- Lisp -*-
 ;; taskbot.lisp --
 ;;
-;; Time-stamp: <2011-02-09 22:36:34 davazp>
-;; Author: David Vazquez <davazp@es.gnu.org>
-;;
 ;; Copyright (C) 2009,2011 David Vazquez
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -26,6 +23,7 @@
 
 ;;; Global descriptor of the IRC server connection
 (defvar *irc*)
+(defvar *nickname*)
 
 (defun start (&key
               (nickname *default-irc-nickname*)
