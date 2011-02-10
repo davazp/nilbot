@@ -43,7 +43,7 @@
 ;;; contains a list and an unary function to collect values at the end
 ;;; of the list efficiently.
 ;;;
-;;; Eeach collector descriptor is one of the following forms:
+;;; Each collector descriptor is one of the following forms:
 ;;;
 ;;;   NAME
 ;;;   (NAME INITFORM)
@@ -56,7 +56,7 @@
 ;;;
 ;;; NOTE: You must not change the list destructively if you want that
 ;;; collector function works.
-;;; 
+;;;
 (defmacro with-collectors ((&rest names) &body code)
   (let ((names (mapcar #'mklist names))
         ;; A list of lists of the form (NAME INITFORM BEGIN END FNAME),
@@ -73,7 +73,7 @@
                     (gensym)
                     (or fname (symbolize 'collect- name)))
               table)))
-    (macrolet ( ;; Map through collectors binding NAME INITFORM BEGIN
+    (macrolet (;; Map through collectors binding NAME INITFORM BEGIN
                ;; and END variables, collecting the results in a list.
                (map* (form)
                  `(loop for (name initform begin end fname)
