@@ -25,6 +25,11 @@
 (defvar *context-from*)
 (defvar *context-to*)
 
+;;; non-NIL if the server supports the capability IDENTIFY-MSG. We use
+;;; this in order to be confident of the user and does not require
+;;; authentication.
+(defvar *identify-msg-p* nil)
+
 (defun response-to (to fmt &rest args)
   (irc:privmsg *irc* to (apply #'format nil fmt args)))
 
@@ -34,6 +39,19 @@
 (defun me-p (str)
   (string= str (irc:nickname (irc:user *irc*))))
 
+(defun cap-handler (message)
+  (destructuring-bind (target &optional response capabilities)
+      (irc:arguments message)
+    (declare (ignore target))
+    ;; The *IDENTIFY-MSG-P* variable is dangerous. We must be
+    ;; conservative here and set *IDENTIFY-MSG-P* when we are sure the
+    ;; server support the capability.
+    (setf *identify-msg-p* nil)
+    (when (and response (string= response "ACK"))
+      (let ((capabs (split-string capabilities)))
+        (when (find "identify-msg" capabs :test #'string=)
+          (setf *identify-msg-p* t))))))
+
 (defun privmsg-handler (message)
   (let ((source (irc:source message)))
     (destructuring-bind (target input)
@@ -41,6 +59,13 @@
       (process-message source target input))))
 
 (defun process-message (origin target message)
+  ;; If the IDENTIFY-MSG is avalaible, we require the user is
+  ;; identified in the services of the IRC server.
+  (when *identify-msg-p*
+    (if (char= (char message 0) #\+)
+        (setq message (subseq message 1))
+        (return-from process-message)))
+  ;; Process the message
   (let (prefixp)
     ;; Check if the message is a taskbot command
     (cond

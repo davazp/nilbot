@@ -25,6 +25,10 @@
 (defvar *irc*)
 (defvar *nickname*)
 
+;;; This is an internal interface of cl-irc, however we need cap
+;;; support really if the server supports it.
+(irc::create-irc-message-classes (:cap))
+
 (defun start (&key
               (nickname *default-irc-nickname*)
               (server   *default-irc-server*)
@@ -35,8 +39,11 @@
            (setf *irc* (irc:connect :nickname nickname :server server :port port))
            (setf *uptime* (get-universal-time))
            (irc:add-hook *irc* 'irc:irc-privmsg-message 'privmsg-handler)
+           (irc:add-hook *irc* 'irc-cap-message 'cap-handler)
+           ;; Enable IDENTIFY-MSG capability if avalaible.
+           (irc::send-irc-message *irc* :cap "req" "identify-msg")
            (dolist (chan channels)
-             (join  chan))
+             (join chan))
            (irc:read-message-loop *irc*)))
     ;; Use threads in order to keep the slime repl avalaible.
     #+sbcl (sb-thread:make-thread #'run)
