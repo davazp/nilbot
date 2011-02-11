@@ -172,13 +172,13 @@
         `(progn
            (defun ,fname ,(cdr args) ,@code)
            (create-command ,(string name) ,documentation ',fname nil)
-           ,(dolist (alias aliases)
-             `(create-command-alias ,alias ,name)))
+           (dolist (alias ',aliases)
+             (create-command-alias alias ,(string name))))
         `(progn
            (defun ,fname ,args ,@code)
            (create-command ,(string name) ,documentation ',fname t)
-           ,(dolist (alias aliases)
-             `(create-command-alias ,alias ,name))))))
+           (dolist (alias ',aliases)
+             (create-command-alias alias ,(string name)))))))
 
 
 ;; taskbot-commands.lisp ends here

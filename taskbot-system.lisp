@@ -69,8 +69,8 @@
 
 (defun format-help (docstring)
   (if (> (length docstring) 100)
-      (string-downcase (subseq docstring 0 100))
-      (string-downcase docstring)))
+      (subseq docstring 0 100)
+      docstring))
 
 (define-command help (&optional command)
     ((:documentation "Show documentation about a command."))
@@ -79,7 +79,7 @@
      (let ((handler (find-handler command)))
        (let ((docstring (and handler (handler-documentation handler))))
          (if docstring
-             (response "~@(~a ~a~)" command (format-help docstring))
+             (response "~a" (format-help docstring))
              (response "No documentation for the ~a command." command)))))
     (t
      (response "Avalaible commands: ~{~a~#[.~; and ~:;, ~]~}"
@@ -134,7 +134,7 @@
           (format nil "~{~d ~a~2:*~p~*~#[~;~; and ~:;, ~]~}" output)))))
 
 (define-command uptime ()
-    ((:documentation "Tell how long taskbot has been running."))
+    ((:documentation "Tell how long has taskbot been running."))
   (let ((seconds (- (get-universal-time) *uptime*)))
     (if (zerop seconds)
         (response "I have not been running!")
