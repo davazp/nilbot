@@ -113,11 +113,11 @@
 ;;;
 ;;; The output string is composed by the components years, days,
 ;;; hours, minutes and seconds. All components could be ommited.  If
-;;; PRECISION is given, then it should be a integer which specify the
+;;; PRECISSION is given, then it should be a integer which specify the
 ;;; number of components string will have. If ABBREV is non-nil then
 ;;; the name of the components will be abbreviated in order to
 ;;; procedure a more compact string.
-(defun format-time (seconds &key (precision nil) (abbrev nil))
+(defun format-time (seconds &key (precission nil) (abbrev nil))
   (unless (zerop seconds)
     (let* ((long-names   '("second" "minute" "hour" "day" "year"))
            (abbrev-names '("s"      "m"      "h"    "d"   "y"))
@@ -126,7 +126,7 @@
             (loop with i = 0
                   for c in (reverse component-names)
                   for n in (reverse (deaccumulate seconds '(1 60 60 24 365)))
-                  while (or (null precision) (< i precision))
+                  while (or (null precission) (< i precission))
                   unless (zerop n)
                   collect n and collect c and do (incf i))))
       (if abbrev
