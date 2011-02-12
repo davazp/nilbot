@@ -34,7 +34,7 @@
                        (server   *default-irc-server*)
                        (port     *default-irc-port*)
                        channels)
-  (with-database 
+  (with-database
     (setf *irc* (irc:connect :nickname nickname :server server :port port))
     (setf *uptime* (get-universal-time))
     (irc:add-hook *irc* 'irc:irc-privmsg-message 'privmsg-handler)

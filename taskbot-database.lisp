@@ -26,8 +26,14 @@
   `(progn
      (unless (probe-file *database-pathname*)
        (error "Database `~a' does not exist." *database-pathname*))
-     (sqlite:with-open-database (*database* *database-pathname*)
-       ,@code)))
+     ;; We set *database* indeed of bound it in order to provide
+     ;; access to the value *database* from the Slime REPL and,
+     ;; therefore, all database function working.
+     (setf *database* (sqlite:connect *database-pathname*))
+     (unwind-protect
+          (progn ,@code))
+     (sqlite:disconnect *database*)
+     (setf *database* nil)))
 
 ;;; Channel related functions
 
@@ -43,6 +49,26 @@ DELETE FROM channels WHERE name=?" name))
   (mapcar #'car (sqlite:execute-to-list *database* "
 SELECT name FROM channels")))
 
+
+;;; Users related functions
+
+(defun db-create-user (name permission)
+  (sqlite:execute-non-query *database* "
+INSERT INTO users(nick, permission) VALUES(?, ?)" name permission))
+
+(defun db-delete-user (name)
+  (sqlite:execute-non-query *database* "
+DELETE FROM users WHERE nick=?" name))
+
+(defun db-list-users ()
+  (mapcar #'car (sqlite:execute-to-list *database* "
+SELECT nick FROM users")))
+
+(defun db-query-user (name)
+  (sqlite:execute-one-row-m-v *database* "
+SELECT nick,permission FROM users WHERE nick=?
+" name))
+
 
 
 ;;; Emacs and slime provides beautiful indentation so.
@@ -51,10 +77,8 @@ SELECT name FROM channels")))
      (format output "CREATE TABLE ~a(~{~(~a~) ~a~^, ~})" ',name ',fields)
      (sqlite:execute-non-query db (get-output-stream-string output))))
 
-;;; Setup the database schema and add the initial settings.
-(defun setup ()
+(defun %setup-schema ()
   (let ((pathname *database-pathname*))
-    (write-line "---")
     ;; If the database exists
     (when (probe-file pathname)
       (format t "The database `~a' exists." pathname)
@@ -64,11 +88,9 @@ SELECT name FROM channels")))
          (delete-file pathname))
         (t
          (write-line "cancelling")
-         (return-from setup))))
+         (throw 'setup-quit nil))))
     (write-line "Creating database...")
     (sqlite:with-open-database (db pathname)
-      ;; Creating schema
-
       (write-line "Creating table tasks...")
       (deftable tasks
         :id "INTEGER PRIMARY KEY ASC"
@@ -79,20 +101,32 @@ SELECT name FROM channels")))
 
       (write-line "Creating table users...")
       (deftable users
-        :nick "TEXT")
+        :id "INTEGER PRIMARY KEY ASC"
+        :nick "TEXT"
+        :permission "TEXT")
 
       (write-line "Creating table channels...")
       (deftable channels
-        :name "TEXT")
+        :name "TEXT"))))
 
-      (write-line "---")
-      ;; Initialize with settings
-      (let (admin)
-        (write-string "Type the nickname of the first admin of taskbot: ")
-        (setq admin (read-line))
-        (write-line "flushing initial settings...")
-        (sqlite:execute-non-query db "INSERT INTO users (nick) VALUES (?)" admin))
 
-      (write-line "done."))))
+(defun %setup-data ()
+  (with-database
+    ;; Initialize with settings
+    (let (admin)
+      (write-string "Type the nickname of the first admin of taskbot: ")
+      (setq admin (read-line))
+      (write-line "flushing initial settings...")
+      (db-create-user admin "admin"))))
+
+
+;;; Setup the database schema and add the initial settings.
+(defun setup ()
+  (catch 'setup-quit
+    (write-line "---")
+    (%setup-schema)
+    (write-line "---")
+    (%setup-data)
+    (write-line "done.")))
 
 ;;; taskbot-database.lisp ends here
