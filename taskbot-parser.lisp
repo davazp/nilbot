@@ -37,9 +37,6 @@
       ((digit-char-p ch)
        (let ((string (read-until stream #'whitespace-char-p :eof-error-p nil)))
          (parse-integer string)))
-      ;; Simple string
-      ((alpha-char-p ch)
-       (read-until stream #'whitespace-char-p :eof-error-p nil))
       ;; Quote string
       ((char= ch #\')
        (prog2 (read-char stream)
@@ -49,7 +46,10 @@
       ((char= ch #\")
        (prog2 (read-char stream)
            (read-until stream #\")
-         (read-char stream))))))
+         (read-char stream)))
+      (t
+       ;; Simple string
+       (read-until stream #'whitespace-char-p :eof-error-p nil)))))
 
 (defun parse-arguments (stream)
   (loop for arg = (parse-argument stream)

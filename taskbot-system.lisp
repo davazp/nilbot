@@ -72,6 +72,13 @@
       (subseq docstring 0 100)
       docstring))
 
+(defun list-commands ()
+  (with-collectors (commands)
+    (do-hash-table (name handler) *command-handlers*
+      (when (handlerp handler)
+        (collect-commands name)))
+    (sort commands #'alphabetically<=)))
+
 (define-command help (&optional command)
     ((:documentation "Show documentation about a command."))
   (cond
@@ -83,10 +90,7 @@
              (response "No documentation for the ~a command." command)))))
     (t
      (response "Avalaible commands: ~{~a~#[.~; and ~:;, ~]~}"
-               (with-collect
-                 (do-hash-table (name handler) *command-handlers*
-                   (when (handlerp handler)
-                     (collect name))))))))
+               (list-commands)))))
 
 
 (define-command machine ()
@@ -139,6 +143,27 @@
     (if (zerop seconds)
         (response "I have not been running!")
         (response "I have been running for ~a. (-:" (format-time seconds)))))
+
+
+
+(define-command join (channel)
+    ((:documentation "Add channel to the channel-list of taskbot."))
+  (response "~a channel added." channel)
+  (join channel)
+  (db-create-channel channel))
+
+(define-command part (channel)
+    ((:documentation "Delete channel from the channel-list of taskbot."))
+  (response "~a channel removed." channel)
+  (part channel)
+  (db-delete-channel channel))
+
+(define-command channels ()
+    ((:documentation "Show the the channel-list of taskbot."))
+  (let ((list (db-list-channels)))
+    (if (null list)
+        (response "taskbot is not in any channel yet.")
+        (response "taskbot is in ~{~a~#[.~; and ~:;, ~]~}" list))))
 
 
 ;;; taskbot-system.lisp ends here

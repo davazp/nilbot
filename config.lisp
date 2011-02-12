@@ -25,7 +25,8 @@
 (defvar *default-irc-server*   "irc.freenode.org")
 (defvar *default-irc-port*     6667)
 (defvar *default-prefix*       #\,)
-(defvar *default-irc-channels*
-  '("#your-channel"))
+
+(defvar *database-pathname*
+  #P"taskbot.db")
 
 ;; config.lisp ends here
