@@ -82,7 +82,9 @@
             (to (if (me-p target) origin target)))
         (let ((*context-from* origin)
               (*context-to* to))
-          (run-command cmd arg))))))
+          ;; So we make the bot does not die after an error.
+          (with-simple-restart (irc-toplevel "Return to IRC toplevel loop.")
+            (run-command cmd arg)))))))
 
 
 
