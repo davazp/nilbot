@@ -67,17 +67,19 @@
         (setq message (subseq message 1))
         (return-from process-message)))
   ;; Process the message
-  (let (prefixp)
+  (let (prefix)
     ;; Check if the message is a taskbot command
     (cond
       ((char= (char message 0) *default-prefix*)
-       (setq prefixp t))
+       (setq prefix 1))
+      ((zerop (search (format nil "~a: " (irc:nickname (irc:user *irc*))) message))
+       (setq prefix (length (format nil "~a: " (irc:nickname (irc:user *irc*))))))
       ((me-p target)
-       (setq prefixp nil))
+       (setq prefix 0))
       (t
        (return-from process-message nil)))
     ;; Invoke the command
-    (with-input-from-string (stream message :start (if prefixp 1 0))
+    (with-input-from-string (stream message :start prefix)
       (let ((cmd (parse-command stream))
             (arg (or (read-line stream nil) ""))
             (to (if (me-p target) origin target)))
@@ -186,6 +188,24 @@
            (create-command ,(string name) ,documentation ',fname t)
            (dolist (alias ',aliases)
              (create-command-alias alias ,(string name)))))))
+
+
+;;; Utility macro to define subcommands.
+(defmacro subcommand-dispatch (subcommand arguments &body clausules)
+  (check-type subcommand symbol)
+  (with-gensyms (subcommand-var arguments-var)
+    `(let ((,subcommand-var ,subcommand)
+           (,arguments-var ,arguments))
+       (cond
+         ,@(loop for clausule in clausules
+                 collect
+                    (destructuring-bind ((name &rest args) &body code)
+                        clausule
+                      `((string-ci= ,subcommand-var ,name)
+                        (destructuring-bind ,args ,arguments-var
+                          ,@code))))
+         (t
+          (error "Invalid subcommand"))))))
 
 
 ;; taskbot-commands.lisp ends here
