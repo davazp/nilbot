@@ -33,7 +33,7 @@
               (nickname *default-irc-nickname*)
               (server   *default-irc-server*)
               (port     *default-irc-port*)
-              (channels *default-irc-channels*))
+              channels)
   "Start taskbot."
   (flet ((run ()
            (setf *irc* (irc:connect :nickname nickname :server server :port port))

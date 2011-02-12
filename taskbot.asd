@@ -26,6 +26,7 @@
   ((:file "packages")
    (:file "config")
    (:file "utils")
+   (:file "taskbot-database")
    (:file "taskbot")
    (:file "taskbot-parser")
    (:file "taskbot-commands")
