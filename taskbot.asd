@@ -20,7 +20,7 @@
 (defsystem :taskbot
   :name "Taskbot"
   :description "A task manager IRC Bot written in Common Lisp."
-  :depends-on (:cl-irc)
+  :depends-on (:cl-irc :sqlite)
   :serial t
   :components
   ((:file "packages")
