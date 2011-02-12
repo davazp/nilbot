@@ -29,22 +29,27 @@
 ;;; support really if the server supports it.
 (irc::create-irc-message-classes (:cap))
 
-(defun start (&key
-              (nickname *default-irc-nickname*)
-              (server   *default-irc-server*)
-              (port     *default-irc-port*)
-              channels)
+(defun start-and-wait (&key
+                       (nickname *default-irc-nickname*)
+                       (server   *default-irc-server*)
+                       (port     *default-irc-port*)
+                       channels)
+  (with-database 
+    (setf *irc* (irc:connect :nickname nickname :server server :port port))
+    (setf *uptime* (get-universal-time))
+    (irc:add-hook *irc* 'irc:irc-privmsg-message 'privmsg-handler)
+    (irc:add-hook *irc* 'irc-cap-message 'cap-handler)
+    ;; Enable IDENTIFY-MSG capability if avalaible.
+    (irc::send-irc-message *irc* :cap "req" "identify-msg")
+    (dolist (chan channels)
+      (join chan))
+    (dolist (chan (db-list-channels))
+      (join chan))
+    (irc:read-message-loop *irc*)))
+
+(defun start (&rest options &key &allow-other-keys)
   "Start taskbot."
-  (flet ((run ()
-           (setf *irc* (irc:connect :nickname nickname :server server :port port))
-           (setf *uptime* (get-universal-time))
-           (irc:add-hook *irc* 'irc:irc-privmsg-message 'privmsg-handler)
-           (irc:add-hook *irc* 'irc-cap-message 'cap-handler)
-           ;; Enable IDENTIFY-MSG capability if avalaible.
-           (irc::send-irc-message *irc* :cap "req" "identify-msg")
-           (dolist (chan channels)
-             (join chan))
-           (irc:read-message-loop *irc*)))
+  (flet ((run () (apply #'start-and-wait options)))
     ;; Use threads in order to keep the slime repl avalaible.
     #+sbcl (sb-thread:make-thread #'run)
     #-sbcl (run)))
@@ -52,6 +57,10 @@
 (defun join (channel)
   "Join taskbot to a IRC channel."
   (irc:join *irc* channel))
+
+(defun part (channel)
+  "Part taskbot to a IRC channel."
+  (irc:part *irc* channel))
 
 (defun stop (&optional (message "taskbot says bye!"))
   "Stop taskbot."

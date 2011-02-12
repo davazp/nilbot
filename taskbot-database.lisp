@@ -54,7 +54,7 @@ SELECT name FROM channels")))
 ;;; Setup the database schema and add the initial settings.
 (defun setup ()
   (let ((pathname *database-pathname*))
-    (format t "---~%")
+    (write-line "---")
     ;; If the database exists
     (when (probe-file pathname)
       (format t "The database `~a' exists." pathname)

@@ -141,4 +141,25 @@
         (response "I have been running for ~a. (-:" (format-time seconds)))))
 
 
+
+(define-command join (channel)
+    ((:documentation "Add channel to the channel-list of taskbot."))
+  (response "~a channel added." channel)
+  (join channel)
+  (db-create-channel channel))
+
+(define-command part (channel)
+    ((:documentation "Delete channel from the channel-list of taskbot."))
+  (response "~a channel removed." channel)
+  (part channel)
+  (db-delete-channel channel))
+
+(define-command channels ()
+    ((:documentation "Show the the channel-list of taskbot."))
+  (let ((list (db-list-channels)))
+    (if (null list)
+        (response "taskbot is not in any channel yet.")
+        (response "taskbot is in ~{~a~#[.~; and ~:;, ~]~}" list))))
+
+
 ;;; taskbot-system.lisp ends here
