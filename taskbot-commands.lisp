@@ -19,11 +19,12 @@
 
 (in-package :taskbot)
 
-;;; User who invoked taskbot and the target of taskbot ouptut
-;;; respectively. They are dynamically bound when a privmsg is
-;;; received.
+;;; User who invoked taskbot, target of taskbot ouptut and the user
+;;; permissions respectively. They are dynamically bound when a
+;;; privmsg is received.
 (defvar *context-from*)
 (defvar *context-to*)
+(defvar *context-permission*)
 
 ;;; non-NIL if the server supports the capability IDENTIFY-MSG. We use
 ;;; this in order to be confident of the user and does not require
@@ -80,11 +81,15 @@
       (let ((cmd (parse-command stream))
             (arg (or (read-line stream nil) ""))
             (to (if (me-p target) origin target)))
-        (let ((*context-from* origin)
-              (*context-to* to))
-          ;; So we make the bot does not die after an error.
-          (with-simple-restart (irc-toplevel "Return to IRC toplevel loop.")
-            (run-command cmd arg)))))))
+        (multiple-value-bind (nickname permissions)
+            (db-query-user origin)
+          (when nickname
+            (let ((*context-from* origin)
+                  (*context-to* to)
+                  (*context-permission* permissions))
+              ;; So we make the bot does not die after an error.
+              (with-simple-restart (irc-toplevel "Return to IRC toplevel loop.")
+                (run-command cmd arg)))))))))
 
 
 

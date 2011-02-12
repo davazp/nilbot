@@ -250,4 +250,17 @@
         finally
         (return t)))
 
+
+;;; Check if C1 and C2 are the same character case-insensitively.
+(defun char-ci= (c1 c2)
+  (declare (character c1 c2))
+  (char= (char-upcase c1)
+         (char-upcase c2)))
+
+;;; Check if STR1 and STR2 are the the same string case-insensitively.
+(defun string-ci= (str1 str2)
+  (declare (string str1 str2))
+  (and (= (length str1) (length str2))
+       (every #'char-ci= str1 str2)))
+
 ;; utils.lisp ends here
