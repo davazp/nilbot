@@ -237,4 +237,17 @@
   (elt seq (random (length seq))))
 
 
+;;; Return T if STRING1 is alphabetically before of STRING2. This
+;;; function work with the char<, so it will work only for ASCII
+;;; probably.
+(defun alphabetically<= (string1 string2)
+  (loop for c1 across (string-upcase string1)
+        for c2 across (string-upcase string2)
+        when (char< c1 c2) do
+        (return t)
+        when (char< c2 c1) do
+        (return nil)
+        finally
+        (return t)))
+
 ;; utils.lisp ends here

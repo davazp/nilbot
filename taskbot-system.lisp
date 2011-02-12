@@ -72,6 +72,13 @@
       (subseq docstring 0 100)
       docstring))
 
+(defun list-commands ()
+  (with-collectors (commands)
+    (do-hash-table (name handler) *command-handlers*
+      (when (handlerp handler)
+        (collect-commands name)))
+    (sort commands #'alphabetically<=)))
+
 (define-command help (&optional command)
     ((:documentation "Show documentation about a command."))
   (cond
@@ -83,10 +90,7 @@
              (response "No documentation for the ~a command." command)))))
     (t
      (response "Avalaible commands: ~{~a~#[.~; and ~:;, ~]~}"
-               (with-collect
-                 (do-hash-table (name handler) *command-handlers*
-                   (when (handlerp handler)
-                     (collect name))))))))
+               (list-commands)))))
 
 
 (define-command machine ()
