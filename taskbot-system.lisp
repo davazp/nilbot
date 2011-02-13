@@ -80,6 +80,18 @@
         (collect-commands name)))
     (sort commands #'alphabetically<=)))
 
+(define-command commands ()
+  ((:documentation "List the avalaible commands.")
+   (:permission "nobody"))
+  (flet (;; Check if COMMAND is avalaible to the user according to
+         ;; the permissions settings.
+         (avalaible-command-p (command)
+           (let ((handler (find-handler command)))
+             (permission<= (handler-permission handler) *context-permission*))))
+    ;; List avalaible commands
+    (response "Avalaible commands: ~{~a~#[.~; and ~:;, ~]~}"
+              (remove-if-not #'avalaible-command-p (list-commands)))))
+
 (define-command help (&optional command)
     ((:documentation "Show documentation about a command.")
      (:permission "nobody"))
@@ -93,14 +105,7 @@
              (response "~a" (format-help docstring))
              (response "No documentation for the ~a command." command)))))
     (t
-     (flet (;; Check if COMMAND is avalaible to the user according to
-            ;; the permissions settings.
-            (avalaible-command-p (command)
-              (let ((handler (find-handler command)))
-                (permission<= (handler-permission handler) *context-permission*))))
-       ;; List avalaible commands
-       (response "Avalaible commands: ~{~a~#[.~; and ~:;, ~]~}"
-                 (remove-if-not #'avalaible-command-p (list-commands)))))))
+     (irc-handler-commands))))
 
 
 (define-command machine ()
@@ -187,6 +192,8 @@
        ((db-query-user user)
         (response "user already exists."))
        (t
+        (unless (permissionp perm)
+          (%error "~a is not a permission level." perm))
         (db-create-user user perm)
         (response "user added."))))
     (("del" user)
