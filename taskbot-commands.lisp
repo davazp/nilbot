@@ -104,26 +104,33 @@
           (handler-case
               (run-command cmd arg)
             (taskbot-error (error)
-              (apply #'response
-                     (simple-condition-format-control error)
-                     (simple-condition-format-arguments error)))))))))
+              (unless (permission= *context-permission* "undesirable")
+                (apply #'response
+                       (simple-condition-format-control error)
+                       (simple-condition-format-arguments error))))))))))
 
 ;;; Permissions functions
 
 (deftype permission ()
   `(satisfies permissionp))
 
+(defvar *permissions*
+  #("undesirable" "nobody" "user" "admin"))
+
 (defun permissionp (x)
-  (find x #("nobody" "user" "admin") :test #'string-ci=))
+  (find x *permissions* :test #'string-ci=))
 
 (defun get-user-permission (user)
   (or (nth-value 2 (db-query-user user)) "nobody"))
 
+(defun permission= (perm1 perm2)
+  (declare (permission perm1 perm2))
+  (string-ci= perm1 perm2))
+
 (defun permission<= (perm1 perm2)
   (declare (permission perm1 perm2))
-  (let ((perms #("nobody" "user" "admin")))
-    (<= (position perm1 perms :test #'string-ci=)
-        (position perm2 perms :test #'string-ci=))))
+  (<= (position perm1 *permissions* :test #'string-ci=)
+      (position perm2 *permissions* :test #'string-ci=)))
 
 ;;; Require PERM priviledge level.
 (defun require-permission (perm)

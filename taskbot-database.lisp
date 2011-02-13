@@ -64,6 +64,10 @@ DELETE FROM users WHERE nick=?" name))
   (mapcar #'car (sqlite:execute-to-list *database* "
 SELECT nick FROM users")))
 
+(defun db-update-user (oid nick permission)
+  (sqlite:execute-non-query *database* "
+UPDATE users SET nick=?, permission=? WHERE oid=?" nick permission oid))
+
 (defun db-query-user (name)
   (sqlite:execute-one-row-m-v *database* "
 SELECT oid,nick,permission FROM users WHERE nick=?

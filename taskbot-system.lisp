@@ -202,7 +202,16 @@
         (db-delete-user user)
         (response "user deleted."))
        (t
-        (response "user does not exist."))))))
+        (response "user does not exist."))))
+    (("appoint" user new-permission)
+     (multiple-value-bind (oid nick perm)
+         (db-query-user user)
+       (if (not oid)
+           (db-create-user user perm)
+           (db-update-user oid nick new-permission))
+       (if (find (char perm 0) "aeiou")
+           (response "~a is an ~a now" nick new-permission)
+           (response "~a is a ~a now" nick new-permission))))))
 
 
 (define-command whois (user)
