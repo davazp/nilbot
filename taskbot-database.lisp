@@ -66,7 +66,7 @@ SELECT nick FROM users")))
 
 (defun db-query-user (name)
   (sqlite:execute-one-row-m-v *database* "
-SELECT nick,permission FROM users WHERE nick=?
+SELECT oid,nick,permission FROM users WHERE nick=?
 " name))
 
 

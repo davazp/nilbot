@@ -44,7 +44,8 @@
 
 (define-command hello ()
     ((:documentation "Say Hi in several languages.")
-     (:aliases "HI" "HOLA"))
+     (:aliases "HI" "HOLA")
+     (:permission "nobody"))
   (let ((msg '("Hola!"
                "Hi!"
                "Hello"
@@ -80,17 +81,26 @@
     (sort commands #'alphabetically<=)))
 
 (define-command help (&optional command)
-    ((:documentation "Show documentation about a command."))
+    ((:documentation "Show documentation about a command.")
+     (:permission "nobody"))
   (cond
     (command
      (let ((handler (find-handler command)))
-       (let ((docstring (and handler (handler-documentation handler))))
+       (let ((docstring (and handler
+                             (permission<= (handler-permission handler) *context-permission*)
+                             (handler-documentation handler))))
          (if docstring
              (response "~a" (format-help docstring))
              (response "No documentation for the ~a command." command)))))
     (t
-     (response "Avalaible commands: ~{~a~#[.~; and ~:;, ~]~}"
-               (list-commands)))))
+     (flet (;; Check if COMMAND is avalaible to the user according to
+            ;; the permissions settings.
+            (avalaible-command-p (command)
+              (let ((handler (find-handler command)))
+                (permission<= (handler-permission handler) *context-permission*))))
+       ;; List avalaible commands
+       (response "Avalaible commands: ~{~a~#[.~; and ~:;, ~]~}"
+                 (remove-if-not #'avalaible-command-p (list-commands)))))))
 
 
 (define-command machine ()
@@ -145,21 +155,23 @@
         (response "I have been running for ~a. (-:" (format-time seconds)))))
 
 
-
 (define-command join (channel)
-    ((:documentation "Add channel to the channel-list of taskbot."))
+    ((:documentation "Add channel to the channel-list of taskbot.")
+     (:permission "admin"))
   (response "~a channel added." channel)
   (join channel)
   (db-create-channel channel))
 
 (define-command part (channel)
-    ((:documentation "Delete channel from the channel-list of taskbot."))
+    ((:documentation "Delete channel from the channel-list of taskbot.")
+     (:permission "admin"))
   (response "~a channel removed." channel)
   (part channel)
   (db-delete-channel channel))
 
 (define-command channels ()
-    ((:documentation "Show the the channel-list of taskbot."))
+    ((:documentation "Show the the channel-list of taskbot.")
+     (:permission "admin"))
   (let ((list (db-list-channels)))
     (if (null list)
         (response "taskbot is not in any channel yet.")
@@ -167,7 +179,8 @@
 
 
 (define-command user (subcommand &rest args)
-    ((:documentation "Manage list of users."))
+    ((:documentation "Manage list of users.")
+     (:permission "admin"))
   (subcommand-dispatch subcommand args
     (("add" user &optional (perm "user"))
      (cond
@@ -183,6 +196,19 @@
         (response "user deleted."))
        (t
         (response "user does not exist."))))))
+
+
+(define-command whois (user)
+    ((:documentation "Print information about an user."))
+  (let ((oid (db-query-user user))
+        (perm (get-user-permission user)))
+    (if (find (char perm 0) "aeiou")
+        (response "~a ~@[(#~d) ~]is an ~a." user oid perm)
+        (response "~a ~@[(#~d) ~]is a ~a."  user oid perm))))
+
+(define-command whoami ()
+    ((:documentation "Print information about you."))
+  (irc-handler-whois *context-from*))
 
 
 ;;; taskbot-system.lisp ends here

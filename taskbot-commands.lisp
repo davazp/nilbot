@@ -54,10 +54,21 @@
           (setf *identify-msg-p* t))))))
 
 (defun privmsg-handler (message)
-  (let ((source (irc:source message)))
-    (destructuring-bind (target input)
-        (irc:arguments message)
-      (process-message source target input))))
+  (with-simple-restart (irc-toplevel "Return to IRC toplevel loop.")
+    (let ((source (irc:source message)))
+      (destructuring-bind (target input)
+          (irc:arguments message)
+        (process-message source target input)))))
+
+
+;;; IRC Errors. Taskbot captures these errors and report in IRC chat.
+(define-condition taskbot-error (simple-error)
+  nil)
+
+;;; Signal a taskbot error.
+(defun %error (fmt &rest args)
+  (signal 'taskbot-error :format-control fmt :format-arguments args))
+
 
 (defun process-message (origin target message)
   ;; If the IDENTIFY-MSG is avalaible, we require the user is
@@ -72,8 +83,12 @@
     (cond
       ((char= (char message 0) *default-prefix*)
        (setq prefix 1))
-      ((zerop (search (format nil "~a: " (irc:nickname (irc:user *irc*))) message))
+      ;; 'taskbot: ' messages
+      ((let* ((mark (format nil "~a: " (irc:nickname (irc:user *irc*))))
+              (posi (search mark message)))
+         (and (integerp posi) (zerop posi)))
        (setq prefix (length (format nil "~a: " (irc:nickname (irc:user *irc*))))))
+      ;; queries
       ((me-p target)
        (setq prefix 0))
       (t
@@ -83,15 +98,39 @@
       (let ((cmd (parse-command stream))
             (arg (or (read-line stream nil) ""))
             (to (if (me-p target) origin target)))
-        (multiple-value-bind (nickname permissions)
-            (db-query-user origin)
-          (when nickname
-            (let ((*context-from* origin)
-                  (*context-to* to)
-                  (*context-permission* permissions))
-              ;; So we make the bot does not die after an error.
-              (with-simple-restart (irc-toplevel "Return to IRC toplevel loop.")
-                (run-command cmd arg)))))))))
+        (let ((*context-from* origin)
+              (*context-to* to)
+              (*context-permission* (get-user-permission origin)))
+          (handler-case
+              (run-command cmd arg)
+            (taskbot-error (error)
+              (apply #'response
+                     (simple-condition-format-control error)
+                     (simple-condition-format-arguments error)))))))))
+
+;;; Permissions functions
+
+(deftype permission ()
+  `(satisfies permissionp))
+
+(defun permissionp (x)
+  (find x #("nobody" "user" "admin") :test #'string-ci=))
+
+(defun get-user-permission (user)
+  (or (nth-value 2 (db-query-user user)) "nobody"))
+
+(defun permission<= (perm1 perm2)
+  (declare (permission perm1 perm2))
+  (let ((perms #("nobody" "user" "admin")))
+    (<= (position perm1 perms :test #'string-ci=)
+        (position perm2 perms :test #'string-ci=))))
+
+;;; Require PERM priviledge level.
+(defun require-permission (perm)
+  (unless (permission<= perm *context-permission*)
+    (if (find (char perm 0) "aeiou")
+        (%error "You need be an ~a to do this." perm)
+        (%error "You need be a ~a to do this." perm))))
 
 
 
@@ -111,6 +150,14 @@
     :initarg :parse-arguments-p
     :initform t
     :reader handler-parse-arguments-p)
+   ;; This slot is only informative. The function `run-command' will
+   ;; work even if this slot is T and the user is not an admin. Each
+   ;; command is responsible to require to the user the required
+   ;; priviledges.
+   (permission
+    :initarg :permission
+    :initform "user"
+    :reader handler-permission)
    (aliases
     :initarg :aliases
     :initform ()
@@ -137,13 +184,13 @@
      (let ((entry (gethash (string-upcase handler-spec) *command-handlers*)))
        (find-handler entry)))))
 
-
-(defun create-command (name documentation function parse-arguments-p)
+(defun create-command (name documentation function parse-arguments-p permission)
   (setf (gethash name *command-handlers*)
         (make-instance 'handler
                        :documentation documentation
                        :function function
-                       :parse-arguments-p parse-arguments-p)))
+                       :parse-arguments-p parse-arguments-p
+                       :permission permission)))
 
 (defun create-command-alias (alias command)
   (let ((handler (find-handler command)))
@@ -157,8 +204,7 @@
   (let ((handler (find-handler command)))
     (cond
       ((null handler)
-       ;; unknown command
-       )
+       (%error "unknown command"))
       ;; Commands with parsed arguments
       ((handler-parse-arguments-p handler)
        (with-input-from-string (stream argument-line)
@@ -173,19 +219,28 @@
   (and (not (null arglist))
        (eq (car arglist) '&unparsed-argument)))
 
+;;; Define a taskbot command. You can see taskbot-system.lisp for
+;;; several examples of usage.
 (defmacro define-command (name (&rest args) options &body code)
   (let ((documentation (cadr (assoc :documentation options)))
         (aliases (cdr (assoc :aliases options)))
+        (permission (or (second (assoc :permission options)) "user"))
         (fname (symbolize 'irc-handler- name)))
+    (check-type documentation (or null string))
+    (check-type permission permission)
     (if (arglist-unparsed-argument-p args)
         `(progn
-           (defun ,fname ,(cdr args) ,@code)
-           (create-command ,(string name) ,documentation ',fname nil)
+           (defun ,fname ,(cdr args)
+             ,(if permission `(require-permission ,permission))
+             ,@code)
+           (create-command ,(string name) ,documentation ',fname nil ,permission)
            (dolist (alias ',aliases)
              (create-command-alias alias ,(string name))))
         `(progn
-           (defun ,fname ,args ,@code)
-           (create-command ,(string name) ,documentation ',fname t)
+           (defun ,fname ,args
+             ,(if permission `(require-permission ,permission))
+             ,@code)
+           (create-command ,(string name) ,documentation ',fname t ,permission)
            (dolist (alias ',aliases)
              (create-command-alias alias ,(string name)))))))
 
@@ -205,7 +260,7 @@
                         (destructuring-bind ,args ,arguments-var
                           ,@code))))
          (t
-          (error "Invalid subcommand"))))))
+          (%error "~a is an invalid subcommand." ,subcommand-var))))))
 
 
 ;; taskbot-commands.lisp ends here
