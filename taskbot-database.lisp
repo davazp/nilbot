@@ -35,7 +35,27 @@
      (sqlite:disconnect *database*)
      (setf *database* nil)))
 
+
+;;; This variable keeps database schema. They are defined with
+;;; `define-table' in several locations across taskbot.
+(defvar *database-schema*
+  (make-hash-table))
+
+(defun %define-table-fn (name fields)
+  (lambda ()
+    (let ((output (make-string-output-stream)))
+      (format output "CREATE TABLE ~a(~{~(~a~) ~a~^, ~})" name fields)
+      (sqlite:execute-non-query *database* (get-output-stream-string output)))))
+
+(defmacro define-table (name &body fields)
+  `(setf (gethash ',name *database-schema*)
+         (%define-table-fn ',name ',fields)))
+
+
 ;;; Channel related functions
+
+(define-table channels
+  name "TEXT")
 
 (defun db-create-channel (name)
   (sqlite:execute-non-query *database* "
@@ -52,6 +72,11 @@ SELECT name FROM channels")))
 
 ;;; Users related functions
 
+(define-table users
+  id "INTEGER PRIMARY KEY ASC"
+  nick "TEXT"
+  permission "TEXT")
+
 (defun db-create-user (name permission)
   (sqlite:execute-non-query *database* "
 INSERT INTO users(nick, permission) VALUES(?, ?)" name permission))
@@ -61,8 +86,7 @@ INSERT INTO users(nick, permission) VALUES(?, ?)" name permission))
 DELETE FROM users WHERE nick=?" name))
 
 (defun db-list-users ()
-  (mapcar #'car (sqlite:execute-to-list *database* "
-SELECT nick FROM users")))
+  (mapcar #'car (sqlite:execute-to-list *database* "SELECT nick FROM users")))
 
 (defun db-update-user (oid nick permission)
   (sqlite:execute-non-query *database* "
@@ -75,15 +99,24 @@ SELECT oid,nick,permission FROM users WHERE nick=?
 
 
 
-;;; Emacs and slime provides beautiful indentation so.
-(defmacro deftable (name &body fields)
-  `(let ((output (make-string-output-stream)))
-     (format output "CREATE TABLE ~a(~{~(~a~) ~a~^, ~})" ',name ',fields)
-     (sqlite:execute-non-query db (get-output-stream-string output))))
+(defun database-initialize-schema ()
+  (write-line "Creating database...")
+  (do-hash-table (name function) *database-schema*
+    (format t "  ~(~a~) table~%" name)
+    (funcall function)))
 
-(defun %setup-schema ()
+(defun database-initialize-data ()
+  (let (admin)
+    (write-string "Type the nickname of the first admin of taskbot: ")
+    (finish-output)
+    (setq admin (read-line))
+    (write-line "flushing initial settings...")
+    (db-create-user admin "admin")))
+
+;;; Setup the database schema and add the initial settings.
+(defun setup ()
+  (write-line "---")
   (let ((pathname *database-pathname*))
-    ;; If the database exists
     (when (probe-file pathname)
       (format t "The database `~a' exists." pathname)
       (cond
@@ -92,45 +125,13 @@ SELECT oid,nick,permission FROM users WHERE nick=?
          (delete-file pathname))
         (t
          (write-line "cancelling")
-         (throw 'setup-quit nil))))
-    (write-line "Creating database...")
-    (sqlite:with-open-database (db pathname)
-      (write-line "Creating table tasks...")
-      (deftable tasks
-        :id "INTEGER PRIMARY KEY ASC"
-        :description "TEXT"
-        :place "TEXT"
-        :date "INTEGER"
-        :author "TEXT")
-
-      (write-line "Creating table users...")
-      (deftable users
-        :id "INTEGER PRIMARY KEY ASC"
-        :nick "TEXT"
-        :permission "TEXT")
-
-      (write-line "Creating table channels...")
-      (deftable channels
-        :name "TEXT"))))
-
-
-(defun %setup-data ()
-  (with-database
-    ;; Initialize with settings
-    (let (admin)
-      (write-string "Type the nickname of the first admin of taskbot: ")
-      (setq admin (read-line))
-      (write-line "flushing initial settings...")
-      (db-create-user admin "admin"))))
-
-
-;;; Setup the database schema and add the initial settings.
-(defun setup ()
-  (catch 'setup-quit
-    (write-line "---")
-    (%setup-schema)
-    (write-line "---")
-    (%setup-data)
-    (write-line "done.")))
+         (return-from setup))))
+    ;; Use sqlite:with-open-database indeed of with-database because
+    ;; the second check if the database file exists.
+    (sqlite:with-open-database (*database* pathname)
+      (database-initialize-schema)
+      (write-line "---")
+      (database-initialize-data)
+      (write-line "done."))))
 
 ;;; taskbot-database.lisp ends here

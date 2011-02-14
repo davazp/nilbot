@@ -31,6 +31,6 @@
    (:file "taskbot-parser")
    (:file "taskbot-commands")
    (:file "taskbot-system")
-   (:file "taskbot-tasks")))
+   (:file "taskbot-tracker")))
 
 ;; taskbot.asd ends here
