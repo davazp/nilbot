@@ -33,9 +33,12 @@
                        (nickname *default-irc-nickname*)
                        (server   *default-irc-server*)
                        (port     *default-irc-port*)
+                       password
                        channels)
   (with-database
-    (setf *irc* (irc:connect :nickname nickname :server server :port port))
+    (if password
+        (setf *irc* (irc:connect :nickname nickname :server server :port port))
+        (setf *irc* (irc:connect :nickname nickname :server server :port port :password password)))
     (setf *uptime* (get-universal-time))
     (irc:add-hook *irc* 'irc:irc-privmsg-message 'privmsg-handler)
     (irc:add-hook *irc* 'irc-cap-message 'cap-handler)
