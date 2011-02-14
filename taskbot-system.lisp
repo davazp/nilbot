@@ -120,38 +120,6 @@
             (software-type)
             (software-version)))
 
-(defun deaccumulate (n acc)
-  (declare (type (integer 0 *) n))
-  (let ((quotient (floor (/ n (first acc))) ))
-    (if (endp (cdr acc))
-        (list quotient)
-        (cons (mod quotient (second acc))
-              (deaccumulate quotient (cdr acc))))))
-
-;;; Return a human-readable string representacion of SECONDS.
-;;;
-;;; The output string is composed by the components years, days,
-;;; hours, minutes and seconds. All components could be ommited.  If
-;;; PRECISSION is given, then it should be a integer which specify the
-;;; number of components string will have. If ABBREV is non-nil then
-;;; the name of the components will be abbreviated in order to
-;;; procedure a more compact string.
-(defun format-time (seconds &key (precission nil) (abbrev nil))
-  (unless (zerop seconds)
-    (let* ((long-names   '("second" "minute" "hour" "day" "year"))
-           (abbrev-names '("s"      "m"      "h"    "d"   "y"))
-           (component-names (if abbrev abbrev-names long-names))
-           (output
-            (loop with i = 0
-                  for c in (reverse component-names)
-                  for n in (reverse (deaccumulate seconds '(1 60 60 24 365)))
-                  while (or (null precission) (< i precission))
-                  unless (zerop n)
-                  collect n and collect c and do (incf i))))
-      (if abbrev
-          (format nil "~{~d~a~^ ~}" output)
-          (format nil "~{~d ~a~2:*~p~*~#[~;~; and ~:;, ~]~}" output)))))
-
 (define-command uptime ()
     ((:documentation "Tell how long has taskbot been running."))
   (let ((seconds (- (get-universal-time) *uptime*)))
