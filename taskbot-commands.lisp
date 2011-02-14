@@ -96,7 +96,7 @@
     ;; Invoke the command
     (with-input-from-string (stream message :start prefix)
       (let ((cmd (parse-command stream))
-            (arg (or (read-line stream nil) ""))
+            (arg (subseq (or (read-line stream nil) " ") 1))
             (to (if (me-p target) origin target)))
         (let ((*context-from* origin)
               (*context-to* to)
