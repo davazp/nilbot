@@ -107,7 +107,11 @@
               (unless (permission= *context-permission* "undesirable")
                 (apply #'response
                        (simple-condition-format-control error)
-                       (simple-condition-format-arguments error))))))))))
+                       (simple-condition-format-arguments error))))
+            (program-error (error)
+              ;; FIXME: program-error is more general that
+              ;; this. Implement me correctly!
+              (response "Bad argument numbers"))))))))
 
 ;;; Permissions functions
 
