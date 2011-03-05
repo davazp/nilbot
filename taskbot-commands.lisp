@@ -37,6 +37,12 @@
 (defun response (fmt &rest args)
   (apply #'response-to *context-to* fmt args))
 
+(defun action-to (to fmt &rest args)
+  (irc::ctcp *irc* to (format nil "ACTION ~?" fmt args)))
+
+(defun action (fmt &rest args)
+  (apply #'action-to *context-to* fmt args))
+
 (defun me-p (str)
   (string= str (irc:nickname (irc:user *irc*))))
 
