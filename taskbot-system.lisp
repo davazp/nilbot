@@ -152,7 +152,10 @@
 
 
 (define-command user (subcommand &rest args)
-    ((:documentation "Manage list of users.")
+    ((:documentation "Manage list of users.
+USER ADD <nickname> [permission]
+USER APPPOINT <nickname> <permission>
+")
      (:permission "admin"))
   (subcommand-dispatch subcommand args
     (("add" user &optional (perm "user"))
@@ -164,13 +167,6 @@
           (%error "~a is not a permission level." perm))
         (db-create-user user perm)
         (response "user added."))))
-    (("del" user)
-     (cond
-       ((db-query-user user)
-        (db-delete-user user)
-        (response "user deleted."))
-       (t
-        (response "user does not exist."))))
     (("appoint" user new-permission)
      (multiple-value-bind (oid nick perm)
          (db-query-user user)
@@ -193,6 +189,12 @@
 (define-command whoami ()
     ((:documentation "Print information about you."))
   (irc-handler-whois *context-from*))
+
+
+(define-command bye ()
+    ((:documentation "Quit taskbot.")
+     (:permission "admin"))
+  (stop))
 
 
 ;;; taskbot-system.lisp ends here

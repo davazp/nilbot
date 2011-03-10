@@ -106,12 +106,16 @@ SELECT oid,nick,permission FROM users WHERE nick=?
     (funcall function)))
 
 (defun database-initialize-data ()
-  (let (admin)
+  (let (admin channel)
     (write-string "Type the nickname of the first admin of taskbot: ")
     (finish-output)
     (setq admin (read-line))
+    (write-string "Type a channel name in order to taskbot joins: ")
+    (finish-output)
+    (setq channel (read-line))
     (write-line "flushing initial settings...")
-    (db-create-user admin "admin")))
+    (db-create-user admin "admin")
+    (db-create-channel channel)))
 
 ;;; Setup the database schema and add the initial settings.
 (defun setup ()

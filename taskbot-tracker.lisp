@@ -135,7 +135,8 @@ assign created created-by id))))
     (and result (%list-to-ticket result))))
 
 (defun query-ticket (id)
-  (%sql-simple-query "SELECT * FROM tickets WHERE id=?" id))
+  (or (%sql-simple-query "SELECT * FROM tickets WHERE id=?" id)
+      (%error "ticket #~a not found." id)))
 
 (defun list-last-tickets (context &key (limit 5) status)
   (if status
@@ -157,30 +158,58 @@ assign created created-by id))))
 (define-command take (n)
     ((:documentation "Take a task."))
   (let ((ticket (query-ticket n)))
-    (when ticket
-      (setf (ticket-assign ticket) *context-from*)
-      (save-ticket ticket)
-      (response "Task #~d taken." n))))
+    (unless (string= (ticket-status ticket) "TODO")
+      (%error "This task is not opened."))
+    (setf (ticket-assign ticket) *context-from*)
+    (setf (ticket-status ticket) "STARTED")
+    (save-ticket ticket)
+    (response "Task #~d taken." n)))
 
 (define-command done (n)
     ((:documentation "Mark a task as finished."))
   (let ((ticket (query-ticket n)))
-    (when ticket
-      (setf (ticket-assign ticket) *context-from*)
-      (save-ticket ticket)
-      (response "Task #~d done." n))))
+    (cond
+      ((string= (ticket-status ticket) "TODO")
+       (setf (ticket-assign ticket) *context-from*)
+       (setf (ticket-status ticket) "DONE")
+       (save-ticket ticket)
+       (response "Task #~d done." n))
+      ((string= (ticket-status ticket) "STARTED")
+       (unless (or (string= (ticket-assign ticket) *context-from*)
+                   (string= *context-permission* "admin"))
+         (%error "You are not permissions to do this."))
+       (setf (ticket-status ticket) "DONE")
+       (save-ticket ticket)
+       (response "Task #~d done." n)))))
 
 
 (defun %ago (utime)
   (format-time (- (get-universal-time) utime) :precission 1 :abbrev t))
 
-(define-command news ()
+(define-command list ()
     ((:documentation "Show the last tickets."))
-  (dolist (ticket (list-last-tickets *context-to* :limit 3 :status "TODO"))
-    (response "#~d ~a ~a ago"
-              (ticket-id ticket)
-              (ticket-description ticket)
-              (%ago (ticket-created ticket)))))
+  (let ((ticket-list (list-last-tickets *context-to* :limit 5 :status "TODO")))
+    (if (null ticket-list)
+        (response "No open tasks.")
+        (dolist (ticket ticket-list)
+          (response "#~d ~a" (ticket-id ticket) (ticket-description ticket))))))
+
+(define-command info (id)
+    ((:documentation "Show information about the specified ticket."))
+  (let ((ticket (query-ticket id)))
+    (when (and (char/= (char (ticket-context ticket) 0) #\#)
+               (string/= (ticket-context ticket) *context-from*))
+      (%error "This is a private ticket."))
+    (response "#~d ~a" (ticket-id ticket) (ticket-description ticket))
+    (if (char= (char (ticket-context ticket) 0) #\#)
+        (response "created by: ~a ~a ago at ~a channel"
+                  (ticket-created-by ticket)
+                  (%ago (ticket-created ticket))
+                  (ticket-context ticket))
+        (response "created by: ~a ~a ago"
+                  (ticket-created-by ticket)
+                  (%ago (ticket-created ticket))))
+    (response "status: ~(~a~) ~@[by ~a~]" (ticket-status ticket) (ticket-assign ticket))))
 
 
 ;;; taskbot-tracker.lisp ends here
