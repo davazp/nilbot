@@ -205,6 +205,7 @@ USER APPPOINT <nickname> <permission>
 (define-command ban (user)
     ((:documentation "Ban an user.")
      (:permission "admin"))
+  (check-type user string)
   (multiple-value-bind (oid nick perm)
       (db-query-user user)
     (declare (ignorable nick))
