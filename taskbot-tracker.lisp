@@ -146,14 +146,17 @@ assign created created-by id))))
   (or (%sql-simple-query "SELECT * FROM tickets WHERE id=?" id)
       (%error "ticket #~a not found." id)))
 
-(defun list-last-tickets (context &key status)
-  (if status
-      (%sql-query
-       "SELECT * FROM tickets WHERE context=? and status=? ORDER BY created DESC"
-       context status)
-      (%sql-query
-       "SELECT * FROM tickets WHERE context=? ORDER BY created DESC"
-       context)))
+(defun list-last-tickets (context &key status assign)
+  (apply #'%sql-query
+         (join-strings (list
+                        "SELECT * FROM tickets WHERE context=?"
+                        (if status "AND status=?" "")
+                        (if assign "AND assign=?" "")
+                        "ORDER BY created DESC"))
+         (append
+          (mklist context)
+          (mklist status)
+          (mklist assign))))
 
 
 ;;;; Taskbot commands
@@ -244,6 +247,27 @@ assign created created-by id))))
                   (ticket-created-by ticket)
                   (%ago (ticket-created ticket))))
     (response "status: ~(~a~) ~@[by ~a~]" (ticket-status ticket) (ticket-assign ticket))))
+
+
+(define-command inbox (&optional (kind "STARTED") (user *context-from*))
+    ((:documentation "List the tickets assignated to USER."))
+  (let (status)
+    (cond
+      ((find kind '("TODO" "OPEN" "OPENED") :test #'string-ci=)
+       (setq status "TODO"))
+      ((find kind '("STARTED" "PROGRESS" "TAKEN") :test #'string-ci=)
+       (setq status "STARTED"))
+      ((find kind '("DONE" "CLOSED" "CLOSE") :test #'string-ci=)
+       (setq status "DONE"))
+      ((find kind '("ALL") :test #'string-ci=)
+       (setq status nil))
+      (t
+       (%error "Wrong arguments.")))
+    (let ((ticket-list (list-last-tickets *context-to* :status status :assign user)))
+      (if (null ticket-list)
+          (response "No tickets.")
+          (dolist (ticket ticket-list)
+            (response "#~d ~a" (ticket-id ticket) (ticket-description ticket)))))))
 
 
 ;;; taskbot-tracker.lisp ends here
