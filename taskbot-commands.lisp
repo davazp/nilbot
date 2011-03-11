@@ -300,11 +300,11 @@
 
 (defun run-command (command argument-line)
   (let ((handler (find-handler command)))
-    (unless (handler-keep-last-output-p handler)
+    (when (and handler (not (handler-keep-last-output-p handler)))
       (reset-pending-output *context-to*))
     (cond
       ((null handler)
-       (%error "unknown command"))
+       (%error "Unknown command"))
       ;; Commands with parsed arguments
       ((handler-parse-arguments-p handler)
        (with-input-from-string (stream argument-line)
