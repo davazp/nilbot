@@ -1,2 +1,65 @@
 * Taskbot
-*** Overview
+
+  Taskbot is a task manager IRC Bot written in Common Lisp.
+
+*** Getting started
+    Taskbot has as requirements [[http://common-lisp.net/project/cl-irc/][cl-irc]] and [[http://common-lisp.net/project/cl-sqlite/][cl-sqlite]]. Both are
+    avalaible via [[http://www.quicklisp.org/][quicklisp]] and it is the recommended way to install
+    it.
+
+    Get the taskbot source with
+    : git clone https://davazp@github.com/davazp/taskbot.git
+
+    The first time you run taskbot you will need edit config.lisp to
+    set settings as the IRC server, the default prefix character, and
+    so. Then, start your lisp implementation, load the taskbot system
+    and initialize the database with:
+
+    #+BEGIN_SRC common-lisp
+    (asdf:load-system :taskbot)
+    (taskbot:setup)
+    #+END_SRC
+
+    It will ask you some information. Finally, you can start taskbot with
+    : (taskbot:start)
+
+*** Introduction
+
+    Taskbot is a command driven bot. It accepts commands from both
+    private messages and channel messages. Commands may be prefixed in
+    several ways as:
+    : ,command
+    and
+    : taskbot: command
+
+    You *must* prefix your command if you ask it in a irc channel
+    indeed of privately. You can configure the prefix character in the
+    config.lisp file.
+
+    An important command is =help=. It will show you help about a
+    command. If the argument is ommited, then it will list the
+    commands avalaible for you.
+
+***** The tracker
+      The taskbot main entity is the ticket. You can create a new
+      ticket with
+      : ,add <task description>
+
+      Also you can list the open tickets with
+      : ,list
+
+      The tickets are contextual. Namely, taskbot records where you
+      create it. So =list= in a channel =#a= will list the open
+      tickets for the channel =#a=.
+
+      You can mark the ticket #N as finished with
+      : ,done N
+
+***** Permissions
+      Taskbot provides different categories of users: /undesirable/,
+      /nobody/, /user/ and /admin/. By default, an user is a 'nobody'.
+      The granted permissions to each category is inclusive. In other
+      words, each category adds priviledges to the previous ones. The
+      lowest category /undesirable/ is special. Taskbot will ignore
+      every request of /undesirable/ users. Register an user as
+      /undesirable/ to ban it.
