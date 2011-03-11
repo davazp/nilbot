@@ -314,7 +314,7 @@
           ;; Command with raw argument
           ((not (handler-parse-arguments-p handler))
            (funcall (handler-function handler) argument-line)))
-      (simple-type-error (error)
+      (type-error (error)
         (%error "The datum ~a was expected to be of type ~a."
                 (type-error-datum error)
                 (type-error-expected-type error))))

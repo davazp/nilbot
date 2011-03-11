@@ -97,6 +97,7 @@
 (define-command help (&optional command)
     ((:documentation "Show documentation about a command.")
      (:permission "nobody"))
+  (check-type command (or null string))
   (cond
     (command
      (let ((docstring (command-docstring command)))
@@ -114,6 +115,8 @@
 (define-command apropos (&rest words)
     ((:documetation "Search in the documentation of the avalaible commands.")
      (:permission "nobody"))
+  (dolist (w words)
+    (check-type w string))
   (do-hash-table (command handler) *command-handlers*
     ;; Require it is a command (not an alias) and it is avalaible.
     (when (and (handlerp handler)
@@ -187,14 +190,16 @@ USER APPPOINT <nickname> <permission>
         (db-create-user user perm)
         (response "user added."))))
     (("appoint" user new-permission)
+     (check-type user string)
+     (check-type new-permission permission)
      (multiple-value-bind (oid nick perm)
          (db-query-user user)
        (if (not oid)
            (db-create-user user perm)
            (db-update-user oid nick new-permission))
        (if (find (char perm 0) "aeiou")
-           (response "~a is an ~a now" nick new-permission)
-           (response "~a is a ~a now" nick new-permission))))))
+           (response "~a is an ~a now" user new-permission)
+           (response "~a is a ~a now" user new-permission))))))
 
 
 (define-command ban (user)
@@ -202,6 +207,7 @@ USER APPPOINT <nickname> <permission>
      (:permission "admin"))
   (multiple-value-bind (oid nick perm)
       (db-query-user user)
+    (declare (ignorable nick))
     (cond
       ((not oid)
        (db-create-user user "undesirable"))
@@ -209,7 +215,7 @@ USER APPPOINT <nickname> <permission>
        (when (string= perm "admin")
          (%error "You cannot ban an admin."))
        (db-update-user oid user "undesirable")))
-    (response "~a is an undesirable now" nick)))
+    (response "~a is an undesirable now" user)))
 
 
 (define-command whois (user)
