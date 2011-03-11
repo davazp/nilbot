@@ -68,11 +68,6 @@
     (response "~a ~a" (random-element msg) *context-from*)))
 
 
-(defun format-help (docstring)
-  (if (> (length docstring) 100)
-      (subseq docstring 0 100)
-      docstring))
-
 (defun list-commands ()
   (with-collectors (commands)
     (do-hash-table (name handler) *command-handlers*
@@ -92,20 +87,44 @@
     (response "Avalaible commands: ~{~a~#[.~; and ~:;, ~]~}"
               (remove-if-not #'avalaible-command-p (list-commands)))))
 
+
+(defun command-docstring (command)
+  (let ((handler (find-handler command)))
+    (and handler
+         (permission<= (handler-permission handler) *context-permission*)
+         (handler-documentation handler))))
+
 (define-command help (&optional command)
     ((:documentation "Show documentation about a command.")
      (:permission "nobody"))
   (cond
     (command
-     (let ((handler (find-handler command)))
-       (let ((docstring (and handler
-                             (permission<= (handler-permission handler) *context-permission*)
-                             (handler-documentation handler))))
-         (if docstring
-             (response "~a" (format-help docstring))
-             (response "No documentation for the ~a command." command)))))
+     (let ((docstring (command-docstring command)))
+       (cond
+         (docstring
+          (if (> (length docstring) 100)
+              (response "~a" (subseq docstring 0 100))
+              (response "~a" docstring)))
+         (t
+          (response "No documentation for the ~a command." command)))))
     (t
      (irc-handler-commands))))
+
+
+(define-command apropos (&rest words)
+    ((:documetation "Search in the documentation of the avalaible commands.")
+     (:permission "nobody"))
+  (do-hash-table (command handler) *command-handlers*
+    ;; Require it is a command (not an alias) and it is avalaible.
+    (when (and (handlerp handler)
+               (permission<= (handler-permission handler) *context-permission*))
+      (let ((docstring (handler-documentation handler)))
+        (when docstring
+          (when (every (lambda (w) (search w docstring :test #'char-ci=)) words)
+            (response "~a: ~a"
+                      command
+                      (with-input-from-string (in docstring)
+                        (read-line in)))))))))
 
 
 (define-command machine ()
