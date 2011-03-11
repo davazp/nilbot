@@ -32,7 +32,7 @@
     and
     : taskbot: command
 
-    You *must* prefix your command if you ask it in a irc channel
+    You *must* prefix your command if you ask it in an IRC channel
     indeed of privately. You can configure the prefix character in the
     config.lisp file.
 
