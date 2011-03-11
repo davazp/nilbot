@@ -178,6 +178,21 @@ USER APPPOINT <nickname> <permission>
            (response "~a is a ~a now" nick new-permission))))))
 
 
+(define-command ban (user)
+    ((:documentation "Ban an user.")
+     (:permission "admin"))
+  (multiple-value-bind (oid nick perm)
+      (db-query-user user)
+    (cond
+      ((not oid)
+       (db-create-user user "undesirable"))
+      (t
+       (when (string= perm "admin")
+         (%error "You cannot ban an admin."))
+       (db-update-user oid user "undesirable")))
+    (response "~a is an undesirable now" nick)))
+
+
 (define-command whois (user)
     ((:documentation "Print information about an user."))
   (let ((oid (db-query-user user))
