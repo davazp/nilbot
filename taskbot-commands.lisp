@@ -302,17 +302,22 @@
   (let ((handler (find-handler command)))
     (when (and handler (not (handler-keep-last-output-p handler)))
       (reset-pending-output *context-to*))
-    (cond
-      ((null handler)
-       (%error "Unknown command"))
-      ;; Commands with parsed arguments
-      ((handler-parse-arguments-p handler)
-       (with-input-from-string (stream argument-line)
-         (apply (handler-function handler)
-                (parse-arguments stream))))
-      ;; Command with raw argument
-      ((not (handler-parse-arguments-p handler))
-       (funcall (handler-function handler) argument-line)))
+    (handler-case
+        (cond
+          ((null handler)
+           (%error "Unknown command"))
+          ;; Commands with parsed arguments
+          ((handler-parse-arguments-p handler)
+           (with-input-from-string (stream argument-line)
+             (apply (handler-function handler)
+                    (parse-arguments stream))))
+          ;; Command with raw argument
+          ((not (handler-parse-arguments-p handler))
+           (funcall (handler-function handler) argument-line)))
+      (simple-type-error (error)
+        (%error "The datum ~a was expected to be of type ~a."
+                (type-error-datum error)
+                (type-error-expected-type error))))
     (finish-pending-output)))
 
 
