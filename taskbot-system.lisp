@@ -34,7 +34,7 @@
       (declare (ignorable light))
       (response "~a ~a ~D ~2,'0D:~2,'0D:~2,'0D GMT~@D ~D"
                 (elt daynames day)
-                (elt monthnames month)
+                (elt monthnames (1- month))
                 date
                 hour
                 minute
