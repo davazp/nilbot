@@ -115,6 +115,7 @@
                        (simple-condition-format-control error)
                        (simple-condition-format-arguments error))))
             (program-error (error)
+              (declare (ignorable error))
               ;; FIXME: program-error is more general that
               ;; this. Implement me correctly!
               (response "Bad argument numbers"))))))))

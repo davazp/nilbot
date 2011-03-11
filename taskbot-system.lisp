@@ -190,6 +190,16 @@ USER APPPOINT <nickname> <permission>
     ((:documentation "Print information about you."))
   (irc-handler-whois *context-from*))
 
+(define-command sql (&unparsed-argument sentence)
+    ((:documentation "Execute a sqlite sentence. WARNING: This is a dangerous command.")
+     (:permission "admin"))
+  (handler-case
+      (dolist (result-line (sqlite:execute-to-list *database* sentence))
+        (response "~{~a~^, ~}" result-line))
+    (sqlite:sqlite-error (error)
+      (%error "sqlite error: ~?"
+              (simple-condition-format-control error)
+              (simple-condition-format-arguments error)))))
 
 (define-command bye ()
     ((:documentation "Quit taskbot.")
