@@ -146,14 +146,14 @@ assign created created-by id))))
   (or (%sql-simple-query "SELECT * FROM tickets WHERE id=?" id)
       (%error "ticket #~a not found." id)))
 
-(defun list-last-tickets (context &key (limit 5) status)
+(defun list-last-tickets (context &key status)
   (if status
       (%sql-query
-       "SELECT * FROM tickets WHERE context=? and status=? ORDER BY created DESC LIMIT ?"
-       context status limit)
+       "SELECT * FROM tickets WHERE context=? and status=? ORDER BY created DESC"
+       context status)
       (%sql-query
-       "SELECT * FROM tickets WHERE context=? ORDER BY created DESC LIMIT ?"
-       context limit)))
+       "SELECT * FROM tickets WHERE context=? ORDER BY created DESC"
+       context)))
 
 
 ;;;; Taskbot commands
@@ -222,7 +222,7 @@ assign created created-by id))))
        (setq status nil))
       (t
        (%error "Wrong arguments.")))
-    (let ((ticket-list (list-last-tickets *context-to* :limit 5 :status status)))
+    (let ((ticket-list (list-last-tickets *context-to* :status status)))
       (if (null ticket-list)
          (response "No tickets.")
          (dolist (ticket ticket-list)

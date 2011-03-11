@@ -110,7 +110,7 @@ SELECT oid,nick,permission FROM users WHERE nick=?
     (write-string "Type the nickname of the first admin of taskbot: ")
     (finish-output)
     (setq admin (read-line))
-    (write-string "Type a channel name in order to taskbot joins: ")
+    (write-string "Type the channel name which taskbot should join to: ")
     (finish-output)
     (setq channel (read-line))
     (write-line "flushing initial settings...")

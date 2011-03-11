@@ -30,18 +30,96 @@
 ;;; this in order to be confident of the user and does not require
 ;;; authentication.
 (defvar *identify-msg-p* nil)
+
+;;; Output
+
+;;; IRC Flood is often an impediment to produce useful output. We
+;;; implement here an important feature: continuable output. Every
+;;; response of taskbot command is truncated, but it is recorded in
+;;; order to the user will be capable of continue the output with the
+;;; ,more command.
+
+(defvar *max-output-lines* 6)
+
+;;; Number of seconds which a continuable output is recorded.
+(defvar *max-pending-output-live* 300)
+
+(defstruct (output-record (:constructor make-output-record (mark tail)))
+  (timestamp (get-universal-time))
+  (mark)
+  (tail))
+
+(defvar *pending-output*
+  (make-hash-table :test #'equal))
+
+(defun store-pending-output (to message)
+  (let ((recorded-output (gethash to *pending-output*)))
+    ;; Create a new recorded-output register if no one existed.
+    (when (null recorded-output)
+      (let ((cell (list ':message-mark)))
+        (setf recorded-output (make-output-record cell cell))
+        (setf (gethash to *pending-output*) recorded-output)))
+    (with-slots (timestamp tail)
+        recorded-output
+      (let* ((new-cell (list message)))
+        (setf (cdr tail) new-cell)
+        (setf tail new-cell)))))
+
+(defun reset-pending-output (to)
+  (remhash to *pending-output*))
+
+(defun continue-pending-output-1 (to output n)
+  ;; Clean deprecated output-records
+  (when (> (- (get-universal-time) (output-record-timestamp output))
+           *max-pending-output-live*)
+    (reset-pending-output to))
+  (loop for tail on (cdr (output-record-mark output))
+        for head = (car tail)
+        repeat n
+        do (irc:privmsg *irc* to head)
+        finally
+        (cond
+          ((null tail)
+           (reset-pending-output to)
+           (return t))
+          (t
+           (setf (cdr (output-record-mark output)) tail)
+           (irc:privmsg *irc* to "[more]")
+           (return nil)))))
+
+;;; Return T if all output have been sent, NIL otherwise.
+(defun continue-pending-output (to &optional (n *max-pending-output-live*))
+  (let ((output (gethash to *pending-output*)))
+    (and output (continue-pending-output-1 to output n))))
+
+(defun finish-pending-output (&optional (n *max-output-lines*))
+  (do-hash-table (to output) *pending-output*
+    (continue-pending-output-1 to output n)))
+
+
+;;; High level functions.
 
 (defun response-to (to fmt &rest args)
-  (irc:privmsg *irc* to (apply #'format nil fmt args)))
+  (store-pending-output to (apply #'format nil fmt args)))
 
 (defun response (fmt &rest args)
-  (apply #'response-to *context-to* fmt args))
+  (store-pending-output *context-to* (apply #'format nil fmt args)))
+
+
+;;; Immediate output (no continuable)
+
+(defun immediate-response-to (to fmt &rest args)
+  (irc:privmsg *irc* to (apply #'format nil fmt args)))
+
+(defun immediate-response (fmt &rest args)
+  (irc:privmsg *irc* *context-to* (apply #'format nil fmt args)))
 
 (defun action-to (to fmt &rest args)
   (irc::ctcp *irc* to (format nil "ACTION ~?" fmt args)))
 
 (defun action (fmt &rest args)
   (apply #'action-to *context-to* fmt args))
+
 
 (defun me-p (str)
   (string= str (irc:nickname (irc:user *irc*))))
@@ -111,14 +189,14 @@
               (run-command cmd arg)
             (taskbot-error (error)
               (unless (permission= *context-permission* "undesirable")
-                (apply #'response
+                (apply #'immediate-response
                        (simple-condition-format-control error)
                        (simple-condition-format-arguments error))))
             (program-error (error)
               (declare (ignorable error))
               ;; FIXME: program-error is more general that
               ;; this. Implement me correctly!
-              (response "Bad argument numbers"))))))))
+              (immediate-response "Bad argument numbers"))))))))
 
 ;;; Permissions functions
 
@@ -179,7 +257,13 @@
    (aliases
     :initarg :aliases
     :initform ()
-    :reader handler-aliases)))
+    :reader handler-aliases)
+   ;; Taskbot will not discard the pending output if this is
+   ;; non-nil. This is used to implement continuable output actually.
+   (keep-last-output-p
+    :initarg :keep-last-output-p
+    :initform nil
+    :reader handler-keep-last-output-p)))
 
 (defclass alias ()
   ((handler
@@ -202,13 +286,9 @@
      (let ((entry (gethash (string-upcase handler-spec) *command-handlers*)))
        (find-handler entry)))))
 
-(defun create-command (name documentation function parse-arguments-p permission)
+(defun create-command (&rest initargs &key name &allow-other-keys)
   (setf (gethash name *command-handlers*)
-        (make-instance 'handler
-                       :documentation documentation
-                       :function function
-                       :parse-arguments-p parse-arguments-p
-                       :permission permission)))
+        (apply #'make-instance 'handler :allow-other-keys t initargs)))
 
 (defun create-command-alias (alias command)
   (let ((handler (find-handler command)))
@@ -220,6 +300,8 @@
 
 (defun run-command (command argument-line)
   (let ((handler (find-handler command)))
+    (unless (handler-keep-last-output-p handler)
+      (reset-pending-output *context-to*))
     (cond
       ((null handler)
        (%error "unknown command"))
@@ -230,7 +312,8 @@
                 (parse-arguments stream))))
       ;; Command with raw argument
       ((not (handler-parse-arguments-p handler))
-       (funcall (handler-function handler) argument-line)))))
+       (funcall (handler-function handler) argument-line)))
+    (finish-pending-output)))
 
 
 (defun arglist-unparsed-argument-p (arglist)
@@ -243,24 +326,25 @@
   (let ((documentation (cadr (assoc :documentation options)))
         (aliases (cdr (assoc :aliases options)))
         (permission (or (second (assoc :permission options)) "user"))
+        (keep-last-output-p (second (assoc :keep-last-output-p options)))
         (fname (symbolize 'irc-handler- name)))
     (check-type documentation (or null string))
     (check-type permission permission)
-    (if (arglist-unparsed-argument-p args)
-        `(progn
-           (defun ,fname ,(cdr args)
-             ,(if permission `(require-permission ,permission))
-             ,@code)
-           (create-command ,(string name) ,documentation ',fname nil ,permission)
-           (dolist (alias ',aliases)
-             (create-command-alias alias ,(string name))))
-        `(progn
-           (defun ,fname ,args
-             ,(if permission `(require-permission ,permission))
-             ,@code)
-           (create-command ,(string name) ,documentation ',fname t ,permission)
-           (dolist (alias ',aliases)
-             (create-command-alias alias ,(string name)))))))
+    `(progn
+       ;; Function handler
+       (defun ,fname ,(if (arglist-unparsed-argument-p args) (cdr args) args)
+         ,(if permission `(require-permission ,permission))
+         ,@code)
+       ;; Register handler
+       (create-command :name ,(string name)
+                       :documentation ,documentation
+                       :function ',fname
+                       :parse-arguments-p ,(not (arglist-unparsed-argument-p args))
+                       :permission ,permission
+                       :keep-last-output-p ,keep-last-output-p)
+       ;; Register aliases
+       (dolist (alias ',aliases)
+         (create-command-alias alias ,(string name))))))
 
 
 ;;; Utility macro to define subcommands.
@@ -272,11 +356,11 @@
        (cond
          ,@(loop for clausule in clausules
                  collect
-                    (destructuring-bind ((name &rest args) &body code)
-                        clausule
-                      `((string-ci= ,subcommand-var ,name)
-                        (destructuring-bind ,args ,arguments-var
-                          ,@code))))
+                 (destructuring-bind ((name &rest args) &body code)
+                     clausule
+                   `((string-ci= ,subcommand-var ,name)
+                     (destructuring-bind ,args ,arguments-var
+                       ,@code))))
          (t
           (%error "~a is an invalid subcommand." ,subcommand-var))))))
 
