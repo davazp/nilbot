@@ -111,9 +111,9 @@
   (store-pending-output to '---more---))
 
 (defun response-to (to fmt &rest args)
-  (store-pending-output to (apply #'format nil fmt args))
   (when (zerop (mod (1+ (count-pending-output to)) *max-output-lines*))
-    (more to)))
+    (more to))
+  (store-pending-output to (apply #'format nil fmt args)))
 
 (defun response (fmt &rest args)
   (apply #'response-to *context-to* fmt args))
