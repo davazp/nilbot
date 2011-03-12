@@ -98,18 +98,20 @@
     ((:documentation "Show documentation about a command.")
      (:permission "nobody"))
   (check-type command (or null string))
-  (cond
-    (command
-     (let ((docstring (command-docstring command)))
-       (cond
-         (docstring
-          (if (> (length docstring) 100)
-              (response "~a" (subseq docstring 0 100))
-              (response "~a" docstring)))
-         (t
-          (response "No documentation for the ~a command." command)))))
-    (t
-     (irc-handler-commands))))
+  ;; Without arguments, it is a alias for `COMMANDS'.
+  (when (null command)
+    (irc-handler-commands)
+    (return-from help))
+  ;; Show documentation for COMMAND.
+  (let ((docstring (command-docstring command)))
+    (cond
+      (docstring
+       (with-input-from-string (in docstring)
+         (response "~a" (read-line in))
+         (more)
+         (loop for line = (read-line in nil) while line do (response "~a" line))))
+      (t
+       (response "No documentation for the ~a command." command))))))
 
 
 (define-command apropos (&rest words)
@@ -250,7 +252,7 @@ USER APPPOINT <nickname> <permission>
 (define-command more ()
     ((:documentation "Show pending output")
      (:keep-last-output-p t))
-  (let ((finished (continue-pending-output *context-to*)))
+  (let ((finished (continue-pending-output *context-to* t)))
     (when finished
       (immediate-response "[no more]"))))
 

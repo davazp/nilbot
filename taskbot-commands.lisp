@@ -52,6 +52,12 @@
 (defvar *pending-output*
   (make-hash-table :test #'equal))
 
+(defun count-pending-output (to)
+  (let ((recorded-ouptut (gethash to *pending-output*)))
+    (if (null recorded-ouptut)
+        0
+        (length (cdr (output-record-mark recorded-ouptut))))))
+
 (defun store-pending-output (to message)
   (let ((recorded-output (gethash to *pending-output*)))
     ;; Create a new recorded-output register if no one existed.
@@ -68,14 +74,16 @@
 (defun reset-pending-output (to)
   (remhash to *pending-output*))
 
-(defun continue-pending-output-1 (to output n)
+(defun continue-pending-output-1 (to output remove-more-p)
   ;; Clean deprecated output-records
   (when (> (- (get-universal-time) (output-record-timestamp output))
            *max-pending-output-live*)
     (reset-pending-output to))
+  (when (and remove-more-p (eq (cadr (output-record-mark output)) '---more---))
+    (pop (cdr (output-record-mark output))))
   (loop for tail on (cdr (output-record-mark output))
         for head = (car tail)
-        repeat n
+        until (eq head '---more---)
         do (irc:privmsg *irc* to head)
         finally
         (cond
@@ -88,23 +96,27 @@
            (return nil)))))
 
 ;;; Return T if all output have been sent, NIL otherwise.
-(defun continue-pending-output (to &optional (n *max-pending-output-live*))
+(defun continue-pending-output (to &optional remove-more-p)
   (let ((output (gethash to *pending-output*)))
-    (and output (continue-pending-output-1 to output n))))
+    (and output (continue-pending-output-1 to output remove-more-p))))
 
-(defun finish-pending-output (&optional (n *max-output-lines*))
+(defun finish-pending-output ()
   (do-hash-table (to output) *pending-output*
-    (continue-pending-output-1 to output n)))
+    (continue-pending-output-1 to output nil)))
 
 
 ;;; High level functions.
 
+(defun more (&optional (to *context-to*))
+  (store-pending-output to '---more---))
+
 (defun response-to (to fmt &rest args)
-  (store-pending-output to (apply #'format nil fmt args)))
+  (store-pending-output to (apply #'format nil fmt args))
+  (when (zerop (mod (1+ (count-pending-output to)) *max-output-lines*))
+    (more to)))
 
 (defun response (fmt &rest args)
-  (store-pending-output *context-to* (apply #'format nil fmt args)))
-
+  (apply #'response-to *context-to* fmt args))
 
 ;;; Immediate output (no continuable)
 
@@ -338,8 +350,9 @@
     `(progn
        ;; Function handler
        (defun ,fname ,(if (arglist-unparsed-argument-p args) (cdr args) args)
-         ,(if permission `(require-permission ,permission))
-         ,@code)
+         (block ,name
+           ,(if permission `(require-permission ,permission))
+           ,@code))
        ;; Register handler
        (create-command :name ,(string name)
                        :documentation ,documentation
