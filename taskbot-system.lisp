@@ -111,7 +111,7 @@
          (more)
          (loop for line = (read-line in nil) while line do (response "~a" line))))
       (t
-       (response "No documentation for the ~a command." command))))))
+       (response "No documentation for the ~a command." command)))))
 
 
 (define-command apropos (&rest words)
