@@ -108,7 +108,7 @@
       (docstring
        (with-input-from-string (in docstring)
          (response "~a" (read-line in))
-         (unless (peek-char nil in nil)
+         (when (peek-char nil in nil)
            (more))
          (loop for line = (read-line in nil) while line do (response "~a" line))))
       (t
