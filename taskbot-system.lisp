@@ -253,8 +253,6 @@ USER APPPOINT <nickname> <permission>
 (define-command more ()
     ((:documentation "Show pending output")
      (:keep-last-output-p t))
-  (let ((finished (continue-pending-output *context-to* t)))
-    (when finished
-      (immediate-response "[no more]"))))
+  (continue-pending-output *context-to*))
 
 ;;; taskbot-system.lisp ends here

@@ -74,35 +74,32 @@
 (defun reset-pending-output (to)
   (remhash to *pending-output*))
 
-(defun continue-pending-output-1 (to output remove-more-p)
-  ;; Clean deprecated output-records
-  (when (> (- (get-universal-time) (output-record-timestamp output))
-           *max-pending-output-live*)
-    (reset-pending-output to))
-  (when (and remove-more-p (eq (cadr (output-record-mark output)) '---more---))
-    (pop (cdr (output-record-mark output))))
-  (loop for tail on (cdr (output-record-mark output))
-        for head = (car tail)
-        until (eq head '---more---)
-        do (irc:privmsg *irc* to head)
-        finally
-        (cond
-          ((null tail)
-           (reset-pending-output to)
-           (return t))
-          (t
-           (setf (cdr (output-record-mark output)) tail)
-           (irc:privmsg *irc* to "[more]")
-           (return nil)))))
-
-;;; Return T if all output have been sent, NIL otherwise.
-(defun continue-pending-output (to &optional remove-more-p)
-  (let ((output (gethash to *pending-output*)))
-    (and output (continue-pending-output-1 to output remove-more-p))))
-
 (defun finish-pending-output ()
   (do-hash-table (to output) *pending-output*
-    (continue-pending-output-1 to output nil)))
+    ;; Clean deprecated output-records
+    (when (> (- (get-universal-time) (output-record-timestamp output))
+             *max-pending-output-live*)
+      (reset-pending-output to))
+    (loop for tail on (cdr (output-record-mark output))
+          for head = (car tail)
+          until (eq head '---more---)
+          do (irc:privmsg *irc* to head)
+          finally
+             (cond
+               ((null tail)
+                (reset-pending-output to)
+                (return t))
+               (t
+                (setf (cdr (output-record-mark output)) tail)
+                (irc:privmsg *irc* to "[more]")
+                (return nil))))))
+
+(defun continue-pending-output (to)
+  (let ((output (gethash to *pending-output*)))
+    (when (eq (cadr (output-record-mark output)) '---more---)
+      (pop (cdr (output-record-mark output))))))
+
+
 
 
 ;;; High level functions.
