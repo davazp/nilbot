@@ -264,6 +264,36 @@
        (every #'char-ci= str1 str2)))
 
 
+;;; Truncate a string to a length of N. If STRING is truncated, then
+;;; SUBFIX is append to the end, but the outcoming string has length
+;;; N. If the length of STRING is lesser than N, then STRING is
+;;; returned.
+(defun truncate-string (string n &optional (subfix ""))
+  (declare (type string string subfix)
+           (type integer n))
+  (if (> (length string) n)
+      (concat (subseq string 0 (- n (length subfix))) subfix)
+      string))
+
+;;; Fill string to be a string of length N with PAD characters.  ALIGN
+;;; specifies the position of STRING in the outcoming string.
+(defun fill-string (string n &optional (align :center) (pad #\Space))
+  (declare (type string string)
+           (type integer n)
+           (type character pad))
+  (let* ((string (truncate-string string n))
+         (tspaces (- n (length string)))
+         (lspaces (make-string (floor (/ tspaces 2)) :initial-element pad))
+         (rspaces (make-string (if (evenp n)
+                                   (ceiling (/ tspaces 2))
+                                   (floor (/ tspaces 2)))
+                               :initial-element pad)))
+    (ecase align
+      (:center (concat lspaces string  rspaces))
+      (:left   (concat string  lspaces rspaces))
+      (:right  (concat lspaces rspaces string)))))
+
+
 
 (defun deaccumulate (n acc)
   (declare (type (integer 0 *) n))

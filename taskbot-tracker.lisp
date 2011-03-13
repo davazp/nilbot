@@ -211,6 +211,13 @@ assign created created-by id))))
 (defun %ago (utime)
   (format-time (- (get-universal-time) utime) :precission 1))
 
+(defun format-ticket (ticket)
+  (response "#~d ~a~@[~70T[~a]~]~%"
+            (ticket-id ticket)
+            (truncate-string (ticket-description ticket) 60 "...")
+            (and (ticket-assign ticket)
+                 (fill-string (truncate-string (ticket-assign ticket) 8 ".") 8))))
+
 (define-command list (&optional (kind "TODO"))
     ((:documentation "Show the last tickets."))
   (let (status)
@@ -229,7 +236,7 @@ assign created created-by id))))
       (if (null ticket-list)
          (response "No tickets.")
          (dolist (ticket ticket-list)
-           (response "#~d ~a" (ticket-id ticket) (ticket-description ticket)))))))
+           (format-ticket ticket))))))
 
 (define-command info (id)
     ((:documentation "Show information about the specified ticket."))
