@@ -65,7 +65,7 @@
   "Part taskbot to a IRC channel."
   (irc:part *irc* channel))
 
-(defun stop (&optional (message "taskbot says bye!"))
+(defun stop (&optional (message "bye!"))
   "Stop taskbot."
   (irc:quit *irc* message)
   (values))

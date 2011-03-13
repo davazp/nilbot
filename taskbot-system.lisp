@@ -161,8 +161,8 @@
       (join channel)
       (db-create-channel channel))
     (if (singlep channels)
-      (response "taskbot joined to ~a channel." (car channels))
-      (response "taskbot joined to ~{~a~#[~; and ~;, ~]~} channels." channels))))
+      (response "~a joined to ~a channel." (nickname) (car channels))
+      (response "~a joined to ~{~a~#[~; and ~;, ~]~} channels." (nickname) channels))))
 
 (define-command part (chan1 &rest channels)
     ((:documentation "Delete channel from the channel-list of taskbot.")
@@ -172,16 +172,16 @@
       (part channel)
       (db-delete-channel channel))
     (if (singlep channels)
-        (response "taskbot parted from ~a channel." (car channels))
-        (response "taskbot parted from ~{~a~#[~; and ~;, ~]~} channels." channels))))
+        (response "~a parted from ~a channel." (nickname) (car channels))
+        (response "~a parted from ~{~a~#[~; and ~;, ~]~} channels." (nickname) channels))))
 
 (define-command channels ()
     ((:documentation "Show the the channel-list of taskbot.")
      (:permission "admin"))
   (let ((list (db-list-channels)))
     (if (null list)
-        (response "taskbot is not in any channel yet.")
-        (response "taskbot is in ~{~a~#[.~; and ~:;, ~]~}" list))))
+        (response "~a is not in any channel yet." (nickname))
+        (response "~a is in ~{~a~#[.~; and ~:;, ~]~}" (nickname) list))))
 
 
 (define-command user (subcommand &rest args)

@@ -130,8 +130,11 @@
   (apply #'action-to *context-to* fmt args))
 
 
+(defun nickname ()
+  (irc:nickname (irc:user *irc*)))
+
 (defun me-p (str)
-  (string= str (irc:nickname (irc:user *irc*))))
+  (string= str (nickname)))
 
 (defun cap-handler (message)
   (destructuring-bind (target &optional response capabilities)
