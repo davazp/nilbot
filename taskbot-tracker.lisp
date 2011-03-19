@@ -146,19 +146,19 @@ assign created created-by id))))
   (or (%sql-simple-query "SELECT * FROM tickets WHERE id=?" id)
       (%error "ticket #~a not found." id)))
 
-(defun list-last-tickets (context &key status assign)
+(defun list-last-tickets (context &key status user)
   (apply #'%sql-query
          (format nil
-                 "SELECT * FROM tickets WHERE context=? 
+                 "SELECT * FROM tickets WHERE context=?
                   ~@[AND (~{~*status=?~^ OR ~}~])
-                  ~@[AND assign=?~]
+                  ~@[AND (assign=? OR created_by=?)~]
                   ORDER BY created DESC"
                  (mklist status)
-                 assign)
+                 user)
          `(,context
            ,@(mklist status)
-           ,@(if assign
-                 (list assign)
+           ,@(if user
+                 (list user user)
                  nil))))
 
 
@@ -192,6 +192,26 @@ assign created created-by id))))
   (let ((ticket (create-ticket *context-to* descr :created-by *context-from*)))
     (response "ticket #~a added for ~a." (ticket-id ticket) *context-to*)))
 
+(define-command info (id)
+    ((:documentation "Show information about the specified ticket."))
+  (let ((ticket (query-ticket id)))
+    (when (and (char/= (char (ticket-context ticket) 0) #\#)
+               (string/= (ticket-context ticket) *context-from*))
+      (%error "This is a private ticket."))
+    (response "#~d ~a" (ticket-id ticket) (ticket-description ticket))
+    (if (char= (char (ticket-context ticket) 0) #\#)
+        (response "created by: ~a ~a ago at ~a channel"
+                  (ticket-created-by ticket)
+                  (%ago (ticket-created ticket))
+                  (ticket-context ticket))
+        (response "created by: ~a ~a ago"
+                  (ticket-created-by ticket)
+                  (%ago (ticket-created ticket))))
+    (response "status: ~(~a~) ~@[by ~a~]" (ticket-status ticket) (ticket-assign ticket))))
+
+
+;;;; Marking
+
 (define-command take (n)
     ((:documentation "Take a ticket."))
   (with-ticket-edit (ticket n)
@@ -214,26 +234,6 @@ assign created created-by id))))
     (setf (ticket-status ticket) "TODO"))
   (response "Give up #~d ticket." n))
 
-(define-command info (id)
-    ((:documentation "Show information about the specified ticket."))
-  (let ((ticket (query-ticket id)))
-    (when (and (char/= (char (ticket-context ticket) 0) #\#)
-               (string/= (ticket-context ticket) *context-from*))
-      (%error "This is a private ticket."))
-    (response "#~d ~a" (ticket-id ticket) (ticket-description ticket))
-    (if (char= (char (ticket-context ticket) 0) #\#)
-        (response "created by: ~a ~a ago at ~a channel"
-                  (ticket-created-by ticket)
-                  (%ago (ticket-created ticket))
-                  (ticket-context ticket))
-        (response "created by: ~a ~a ago"
-                  (ticket-created-by ticket)
-                  (%ago (ticket-created ticket))))
-    (response "status: ~(~a~) ~@[by ~a~]" (ticket-status ticket) (ticket-assign ticket))))
-
-
-;;;; Marking
-
 (define-command done (n)
     ((:documentation "Mark a ticket as finished."))
   (with-ticket-edit (ticket n)
@@ -249,7 +249,7 @@ assign created created-by id))))
          (%error "You cannot close this ticket."))
        (setf (ticket-status ticket) "DONE")
        (response "Ticket #~d done." n))
-      ((ticket-close-p ticket)
+      ((ticket-closed-p ticket)
        (%error "This ticke is closed already."))
       (t
        (%error "You cannot close this ticket.")))))
@@ -269,7 +269,7 @@ assign created created-by id))))
          (%error "You cannot close this ticket."))
        (setf (ticket-status ticket) "CANCELED")
        (response "Ticket #~d canceled." n))
-      ((ticket-close-p ticket)
+      ((ticket-closed-p ticket)
        (%error "This ticket is closed already."))
       (t
        (%error "You cannot close this ticket.")))))
@@ -279,50 +279,53 @@ assign created created-by id))))
 
 ;;; Returned values are accept by the `list-last-tickets' functions.
 (defun resolve-status (x)
-  (cond
-    ((string-ci= x "TODO")     "TODO")
-    ((string-ci= x "STARTED")  "STARTED")
-    ((string-ci= x "DONE")     "DONE")
-    ((string-ci= x "CANCELED") "CANCELED")
-    ((string-ci= x "OPEN")
-     (list "TODO" "STARTED"))
-    ((string-ci= x "CLOSED")
-     (list "DONE" "CANCELED"))
-    ((string-ci= x "ALL")
-     (list "TODO" "STARTED" "DONE" "CANCELED"))
-    (t
-     (%error "Wrong status `~a'." x))))
+  (flet ((some-of (&rest list)
+           (find x list :test #'string-ci=)))
+    (cond
+      ((some-of "TODO")
+       "TODO")
+      ((some-of "STARTED")
+       "STARTED")
+      ((some-of "DONE")
+       "DONE")
+      ((some-of "CANCELED" "DISCARDED")
+       "CANCELED")
+      ((some-of "OPEN" "OPENED")
+       (list "TODO" "STARTED"))
+      ((some-of "CLOSE" "CLOSED")
+       (list "DONE" "CANCELED"))
+      ((some-of "ALL")
+       (list "TODO" "STARTED" "DONE" "CANCELED"))
+      (t
+       (%error "Wrong status `~a'." x)))))
 
 
 (defun %ago (utime)
   (format-time (- (get-universal-time) utime) :precission 1))
 
-(defun format-ticket (ticket &key (show-status t) (show-assign t))
+(defun format-ticket (ticket &key (show-status t))
   (response "#~d ~@[~a~@T~]~a~@[~70T[~a]~]~%"
             (ticket-id ticket)
             (and show-status (ticket-status ticket))
             (truncate-string (ticket-description ticket) 60 "...")
-            (and show-assign
-                 (ticket-assign ticket)
+            (and (ticket-assign ticket)
                  (fill-string (truncate-string (ticket-assign ticket) 8 ".") 8))))
 
 (defun list-tickets (&optional kind user)
   (let* ((status (resolve-status kind))
          (show-status (> (length status) 1)))
-    (let ((ticket-list (list-last-tickets *context-to* :status status :assign user)))
+    (let ((ticket-list (list-last-tickets *context-to* :status status :user user)))
       (if (null ticket-list)
          (response "No tickets.")
          (dolist (ticket ticket-list)
-           (if user
-               (format-ticket ticket :show-status show-status :show-assign nil)               
-               (format-ticket ticket :show-status show-status)))))))
+           (format-ticket ticket :show-status show-status))))))
 
 (define-command list (&optional (kind "TODO"))
     ((:documentation "Show the last tickets."))
   (list-tickets kind))
 
-(define-command inbox (&optional (kind "STARTED") (user *context-from*))
-    ((:documentation "List the tickets assignated to USER."))
+(define-command inbox (&optional (kind "OPEN") (user *context-from*))
+    ((:documentation "List the tickets created or assignated to USER."))
   (list-tickets kind user))
 
 
