@@ -277,19 +277,20 @@ assign created created-by id))))
 
 ;;;; Listing
 
-;;; Returned values are accept by the `list-last-tickets' functions.
+;;; Returned a list of values, which is accept by the
+;;; `list-last-tickets' function.
 (defun resolve-status (x)
   (flet ((some-of (&rest list)
            (find x list :test #'string-ci=)))
     (cond
       ((some-of "TODO")
-       "TODO")
+       (list "TODO"))
       ((some-of "STARTED")
-       "STARTED")
+       (list "STARTED"))
       ((some-of "DONE")
-       "DONE")
+       (list "DONE"))
       ((some-of "CANCELED" "DISCARDED")
-       "CANCELED")
+       (list "CANCELED"))
       ((some-of "OPEN" "OPENED")
        (list "TODO" "STARTED"))
       ((some-of "CLOSE" "CLOSED")
