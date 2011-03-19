@@ -148,15 +148,41 @@ assign created created-by id))))
 
 (defun list-last-tickets (context &key status assign)
   (apply #'%sql-query
-         (join-strings (list
-                        "SELECT * FROM tickets WHERE context=?"
-                        (if status "AND status=?" "")
-                        (if assign "AND assign=?" "")
-                        "ORDER BY created DESC"))
-         (append
-          (mklist context)
-          (mklist status)
-          (mklist assign))))
+         (format nil
+                 "SELECT * FROM tickets WHERE context=? 
+                  ~@[AND (~{~*status=?~^ OR ~}~])
+                  ~@[AND assign=?~]
+                  ORDER BY created DESC"
+                 (mklist status)
+                 assign)
+         `(,context
+           ,@(mklist status)
+           ,@(if assign
+                 (list assign)
+                 nil))))
+
+
+;;; Helper functions
+
+(defun ticket-todo-p (x)
+  (string= (ticket-status x) "TODO"))
+
+(defun ticket-started-p (x)
+  (string= (ticket-status x) "STARTED"))
+
+(defun ticket-canceled-p (x)
+  (string= (ticket-status x) "CANCELED"))
+
+(defun ticket-done-p (x)
+  (string= (ticket-status x) "DONE"))
+
+(defun ticket-open-p (x)
+  (or (ticket-todo-p x)
+      (ticket-started-p x)))
+
+(defun ticket-closed-p (x)
+  (or (ticket-canceled-p x)
+      (ticket-done-p x)))
 
 
 ;;;; Taskbot commands
@@ -188,56 +214,6 @@ assign created created-by id))))
     (setf (ticket-status ticket) "TODO"))
   (response "Give up #~d ticket." n))
 
-(define-command done (n)
-    ((:documentation "Mark a ticket as finished."))
-  (with-ticket-edit (ticket n)
-    (cond
-      ((string= (ticket-status ticket) "TODO")
-       (setf (ticket-assign ticket) *context-from*)
-       (setf (ticket-status ticket) "DONE")
-       (response "Ticket #~d done." n))
-      ((string= (ticket-status ticket) "STARTED")
-       (unless (or (string= (ticket-assign ticket) *context-from*)
-                   (string= *context-permission* "admin"))
-         (%error "You cannot close this ticket."))
-       (setf (ticket-status ticket) "DONE")
-       (response "Ticket #~d done." n))
-      ((string= (ticket-status ticket) "DONE")
-       (%error "This ticke is closed already."))
-      (t
-       (%error "You cannot close this ticket.")))))
-
-
-(defun %ago (utime)
-  (format-time (- (get-universal-time) utime) :precission 1))
-
-(defun format-ticket (ticket)
-  (response "#~d ~a~@[~70T[~a]~]~%"
-            (ticket-id ticket)
-            (truncate-string (ticket-description ticket) 60 "...")
-            (and (ticket-assign ticket)
-                 (fill-string (truncate-string (ticket-assign ticket) 8 ".") 8))))
-
-(define-command list (&optional (kind "TODO"))
-    ((:documentation "Show the last tickets."))
-  (let (status)
-    (cond
-      ((find kind '("TODO" "OPEN" "OPENED") :test #'string-ci=)
-       (setq status "TODO"))
-      ((find kind '("STARTED" "PROGRESS" "TAKEN") :test #'string-ci=)
-       (setq status "STARTED"))
-      ((find kind '("DONE" "CLOSED" "CLOSE") :test #'string-ci=)
-       (setq status "DONE"))
-      ((find kind '("ALL") :test #'string-ci=)
-       (setq status nil))
-      (t
-       (%error "Wrong arguments.")))
-    (let ((ticket-list (list-last-tickets *context-to* :status status)))
-      (if (null ticket-list)
-         (response "No tickets.")
-         (dolist (ticket ticket-list)
-           (format-ticket ticket))))))
-
 (define-command info (id)
     ((:documentation "Show information about the specified ticket."))
   (let ((ticket (query-ticket id)))
@@ -256,25 +232,98 @@ assign created created-by id))))
     (response "status: ~(~a~) ~@[by ~a~]" (ticket-status ticket) (ticket-assign ticket))))
 
 
-(define-command inbox (&optional (kind "STARTED") (user *context-from*))
-    ((:documentation "List the tickets assignated to USER."))
-  (let (status)
+;;;; Marking
+
+(define-command done (n)
+    ((:documentation "Mark a ticket as finished."))
+  (with-ticket-edit (ticket n)
     (cond
-      ((find kind '("TODO" "OPEN" "OPENED") :test #'string-ci=)
-       (setq status "TODO"))
-      ((find kind '("STARTED" "PROGRESS" "TAKEN") :test #'string-ci=)
-       (setq status "STARTED"))
-      ((find kind '("DONE" "CLOSED" "CLOSE") :test #'string-ci=)
-       (setq status "DONE"))
-      ((find kind '("ALL") :test #'string-ci=)
-       (setq status nil))
+      ((ticket-todo-p ticket)
+       (string= (ticket-status ticket) "TODO")
+       (setf (ticket-assign ticket) *context-from*)
+       (setf (ticket-status ticket) "DONE")
+       (response "Ticket #~d done." n))
+      ((ticket-started-p ticket)
+       (unless (or (string= (ticket-assign ticket) *context-from*)
+                   (string= *context-permission* "admin"))
+         (%error "You cannot close this ticket."))
+       (setf (ticket-status ticket) "DONE")
+       (response "Ticket #~d done." n))
+      ((ticket-close-p ticket)
+       (%error "This ticke is closed already."))
       (t
-       (%error "Wrong arguments.")))
+       (%error "You cannot close this ticket.")))))
+
+(define-command cancel (n)
+    ((:aliases "DISCARD")
+     (:documentation "Mark a ticket as canceled."))
+  (with-ticket-edit (ticket n)
+    (cond
+      ((ticket-todo-p ticket)
+       (setf (ticket-assign ticket) *context-from*)
+       (setf (ticket-status ticket) "CANCELED")
+       (response "Ticket #~d canceled." n))
+      ((ticket-started-p ticket)
+       (unless (or (string= (ticket-assign ticket) *context-from*)
+                   (string= *context-permission* "admin"))
+         (%error "You cannot close this ticket."))
+       (setf (ticket-status ticket) "CANCELED")
+       (response "Ticket #~d canceled." n))
+      ((ticket-close-p ticket)
+       (%error "This ticket is closed already."))
+      (t
+       (%error "You cannot close this ticket.")))))
+
+
+;;;; Listing
+
+;;; Returned values are accept by the `list-last-tickets' functions.
+(defun resolve-status (x)
+  (cond
+    ((string-ci= x "TODO")     "TODO")
+    ((string-ci= x "STARTED")  "STARTED")
+    ((string-ci= x "DONE")     "DONE")
+    ((string-ci= x "CANCELED") "CANCELED")
+    ((string-ci= x "OPEN")
+     (list "TODO" "STARTED"))
+    ((string-ci= x "CLOSED")
+     (list "DONE" "CANCELED"))
+    ((string-ci= x "ALL")
+     (list "TODO" "STARTED" "DONE" "CANCELED"))
+    (t
+     (%error "Wrong status `~a'." x))))
+
+
+(defun %ago (utime)
+  (format-time (- (get-universal-time) utime) :precission 1))
+
+(defun format-ticket (ticket &key (show-status t) (show-assign t))
+  (response "#~d ~@[~a~@T~]~a~@[~70T[~a]~]~%"
+            (ticket-id ticket)
+            (and show-status (ticket-status ticket))
+            (truncate-string (ticket-description ticket) 60 "...")
+            (and show-assign
+                 (ticket-assign ticket)
+                 (fill-string (truncate-string (ticket-assign ticket) 8 ".") 8))))
+
+(defun list-tickets (&optional kind user)
+  (let* ((status (resolve-status kind))
+         (show-status (> (length status) 1)))
     (let ((ticket-list (list-last-tickets *context-to* :status status :assign user)))
       (if (null ticket-list)
-          (response "No tickets.")
-          (dolist (ticket ticket-list)
-            (response "#~d ~a" (ticket-id ticket) (ticket-description ticket)))))))
+         (response "No tickets.")
+         (dolist (ticket ticket-list)
+           (if user
+               (format-ticket ticket :show-status show-status :show-assign nil)               
+               (format-ticket ticket :show-status show-status)))))))
+
+(define-command list (&optional (kind "TODO"))
+    ((:documentation "Show the last tickets."))
+  (list-tickets kind))
+
+(define-command inbox (&optional (kind "STARTED") (user *context-from*))
+    ((:documentation "List the tickets assignated to USER."))
+  (list-tickets kind user))
 
 
 ;;; taskbot-tracker.lisp ends here
