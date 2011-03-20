@@ -82,6 +82,7 @@
       (reset-pending-output to))
     (loop for tail on (cdr (output-record-mark output))
           for head = (car tail)
+          for count from 0
           until (eq head '---more---)
           do (irc:privmsg *irc* to head)
           finally
@@ -90,8 +91,9 @@
                 (reset-pending-output to)
                 (return t))
                (t
+                (unless (zerop count)
+                  (irc:privmsg *irc* to "[more]"))
                 (setf (cdr (output-record-mark output)) tail)
-                (irc:privmsg *irc* to "[more]")
                 (return nil))))))
 
 (defun continue-pending-output (to)
