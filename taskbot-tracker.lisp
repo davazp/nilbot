@@ -36,9 +36,8 @@
   action "TEXT")
 
 (define-table word_index
-  word "TEXT PRIMARY KEY ASC"
+  word "TEXT"
   id "INTEGER")
-
 
 (defclass ticket ()
   ((id
