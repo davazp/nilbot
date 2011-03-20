@@ -44,16 +44,19 @@
       The taskbot main entity is the ticket. You can create a new
       ticket with
       : ,add <task description>
-
       Also you can list the open tickets with
       : ,list
-
       The tickets are contextual. Namely, taskbot records where you
       create it. So =list= in a channel =#a= will list the open
       tickets for the channel =#a=.
-
-      You can mark the ticket #N as finished with
+      You can assign to you a ticket with
+      : ,take N
+      or mark the ticket #N as finished with
       : ,done N
+      To limit the =list= command to tickets in a given status, type
+      : ,limit <status>
+      Finally, you can search tickets with
+      : ,search <some words>=.
 
 ***** Permissions
       Taskbot provides different categories of users: /undesirable/,
