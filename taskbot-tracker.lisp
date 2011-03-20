@@ -339,7 +339,7 @@ assign created created-by id))))
     ((:documentation "Search the tickets whose description contains a list of words."))
   (let* ((word-list (get-description-words words))
          (sentence (format nil "SELECT * FROM tickets
-                                WHERE context=? AND status=\"TODO\" and status=\"STARTED\" AND
+                                WHERE context=? AND (status=\"TODO\" or status=\"STARTED\") AND
                                 ID IN (SELECT id FROM word_index WHERE ~{~*word=?~^ OR ~})" word-list))
          (result (apply #'%sql-query sentence *context-to* word-list)))
     (if (null result)
