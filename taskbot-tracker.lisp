@@ -191,12 +191,56 @@ assign created created-by id))))
       (ticket-done-p x)))
 
 
+
+(defun format-ticket (ticket &key (show-status t))
+  (response "#~d ~@[~a~@T~]~a~@[~70T[~a]~]~%"
+            (ticket-id ticket)
+            (and show-status (ticket-status ticket))
+            (truncate-string (ticket-description ticket) 60 "...")
+            (and (ticket-assign ticket)
+                 (fill-string (truncate-string (ticket-assign ticket) 8 ".") 8))))
+
+(defun format-ticket-numbers (list)
+  (format nil "~{#~d~#[~; and ~;, ~]~}" (mapcar #'ticket-id list)))
+
+;;; Run CODE for each TICKET bound to the ticket whose id is in the
+;;; result of TICKET-LIST evaluation.  Finally, POSTCODE is run with
+;;; SUCCESS-TICKETS bound to a list of tickets where no errors
+;;; ocurred.  On CODE, calls to FAILURE are treated as calls to
+;;; %ERROR, but the error is delayed until the end of the macro.
+(defmacro do-tickets-numbers ((ticket ticket-list success-tickets) code &body postcode)
+  (with-gensyms (n list errors collect-error success collect-success)
+    `(with-collectors ((,success nil ,collect-success)
+                       (,errors nil ,collect-error))
+       (let ((,list ,ticket-list))
+         (dolist (,n ,list)
+           (with-ticket-edit (,ticket ,n)
+             (handler-case
+                 (progn
+                   ,code
+                   (,collect-success ,ticket))
+               (taskbot-error (error)
+                 (,collect-error error)))))
+         ;;
+         (let ((,success-tickets ,success))
+           ,@postcode)
+         ;;
+         (when ,errors
+           (response "There were errors. Type ,more for futher information.")
+           (more)
+           (dolist (error ,errors)
+             (response "~?"
+                       (simple-condition-format-control error)
+                       (simple-condition-format-arguments error))))))))
+
+
+
 ;;;; Taskbot commands
 
 (define-command add (&unparsed-argument descr)
     ((:documentation "Add a ticket."))
   (let ((ticket (create-ticket *context-to* descr :created-by *context-from*)))
-    (response "ticket #~a added for ~a." (ticket-id ticket) *context-to*)))
+    (response "Ticket #~a added for ~a." (ticket-id ticket) *context-to*)))
 
 (define-command info (id)
     ((:documentation "Show information about the specified ticket."))
@@ -218,66 +262,82 @@ assign created created-by id))))
 
 ;;;; Marking
 
-(define-command take (n)
-    ((:documentation "Take a ticket."))
-  (with-ticket-edit (ticket n)
-    (unless (ticket-todo-p ticket "TODO")
-      (%error "This ticket is not opened."))
-    (setf (ticket-assign ticket) *context-from*)
-    (setf (ticket-status ticket) "STARTED"))
-  (response "Ticket #~d taken." n))
+(define-command take (number1 &rest others-numbers)
+    ((:documentation "Take tickets."))
+  (do-tickets-numbers (ticket (cons number1 others-numbers) success)
+      (progn
+        (unless (ticket-todo-p ticket)
+          (%error "You cannot take ticket #~d. It is not opened." (ticket-id ticket)))
+        (setf (ticket-assign ticket) *context-from*)
+        (setf (ticket-status ticket) "STARTED"))
+    (case (length success)
+      (0 (response "No tickets taken."))
+      (1 (response "Ticket ~a taken by ~a."
+                   (format-ticket-numbers success)
+                   *context-from*))
+      (t (response "Tickets ~a taken by ~a."
+                  (format-ticket-numbers success)
+                  *context-from*)))))
 
-(define-command giveup (n)
-    ((:documentation "Give up a ticket"))
-  (with-ticket-edit (ticket n)
-    (unless (or (string= *context-permission* "admin")
-                (and (ticket-assign ticket)
-                     (string= *context-from* (ticket-assign ticket))))
-      (%error "You are not taken this ticket."))
-    (when (ticket-todo-p ticket)
-      (%error "This is an open ticket."))
-    (setf (ticket-assign ticket) nil)
-    (setf (ticket-status ticket) "TODO"))
-  (response "Give up #~d ticket." n))
+(define-command giveup (number1 &rest other-numbers)
+    ((:documentation "Give up tickets."))
+  (do-tickets-numbers (ticket (cons number1 other-numbers) success)
+      (progn
+        (unless (or (string= *context-permission* "admin")
+                    (and (ticket-assign ticket)
+                         (string= *context-from* (ticket-assign ticket))))
+          (%error "Ticket #~d was taken by someone already." (ticket-id ticket)))
+        (when (ticket-todo-p ticket)
+          (%error "Ticket #~d is opened." (ticket-id ticket)))
+        (setf (ticket-assign ticket) nil)
+        (setf (ticket-status ticket) "TODO"))
+    (case (length success)
+      (0 (response "No ticket was gave up."))
+      (1 (response "Ticket ~a gave up."  (format-ticket-numbers success)))
+      (t (response "Tickets ~a gave up." (format-ticket-numbers success))))))
 
-(define-command done (n)
+(define-command done (number1 &rest other-numbers)
     ((:documentation "Mark a ticket as finished."))
-  (with-ticket-edit (ticket n)
-    (cond
-      ((ticket-todo-p ticket)
-       (setf (ticket-assign ticket) *context-from*)
-       (setf (ticket-status ticket) "DONE")
-       (response "Ticket #~d done." n))
-      ((ticket-started-p ticket)
-       (unless (or (string= (ticket-assign ticket) *context-from*)
-                   (string= *context-permission* "admin"))
-         (%error "You cannot close this ticket."))
-       (setf (ticket-status ticket) "DONE")
-       (response "Ticket #~d done." n))
-      ((ticket-closed-p ticket)
-       (%error "This ticke is closed already."))
-      (t
-       (%error "You cannot close this ticket.")))))
+  (do-tickets-numbers (ticket (cons number1 other-numbers) success)
+      (cond
+        ((ticket-todo-p ticket)
+         (setf (ticket-assign ticket) *context-from*)
+         (setf (ticket-status ticket) "DONE"))
+        ((ticket-started-p ticket)
+         (unless (or (string= (ticket-assign ticket) *context-from*)
+                     (string= *context-permission* "admin"))
+           (%error "You have not permissions to close ticket #~d." (ticket-id ticket)))
+         (setf (ticket-status ticket) "DONE"))
+        ((ticket-closed-p ticket)
+         (%error "Ticked #~d is closed already." (ticket-id ticket)))
+        (t
+         (%error "You could not close the ticket #~d." (ticket-id ticket))))
+    (case (length success)
+      (0 (response "No ticket marked as done."))
+      (1 (response "Ticket ~a is done." (format-ticket-numbers success)))
+      (t (response "Tickets ~a were done." (format-ticket-numbers success))))))
 
-(define-command cancel (n)
+(define-command cancel (number1 &rest others-numbers)
     ((:aliases "DISCARD")
      (:documentation "Mark a ticket as canceled."))
-  (with-ticket-edit (ticket n)
-    (cond
-      ((ticket-todo-p ticket)
-       (setf (ticket-assign ticket) *context-from*)
-       (setf (ticket-status ticket) "CANCELED")
-       (response "Ticket #~d canceled." n))
-      ((ticket-started-p ticket)
-       (unless (or (string= (ticket-assign ticket) *context-from*)
-                   (string= *context-permission* "admin"))
-         (%error "You cannot close this ticket."))
-       (setf (ticket-status ticket) "CANCELED")
-       (response "Ticket #~d canceled." n))
-      ((ticket-closed-p ticket)
-       (%error "This ticket is closed already."))
-      (t
-       (%error "You cannot close this ticket.")))))
+  (do-tickets-numbers (ticket (cons number1 others-numbers) success)
+      (cond
+        ((ticket-todo-p ticket)
+         (setf (ticket-assign ticket) *context-from*)
+         (setf (ticket-status ticket) "CANCELED"))
+        ((ticket-started-p ticket)
+         (unless (or (string= (ticket-assign ticket) *context-from*)
+                     (string= *context-permission* "admin"))
+           (%error "You cannot close ticket #~d." (ticket-id ticket)))
+         (setf (ticket-status ticket) "CANCELED"))
+        ((ticket-closed-p ticket)
+         (%error "Ticket #~d is closed already." (ticket-id ticket)))
+        (t
+         (%error "You cannot close ticket #~d." (ticket-id ticket))))
+    (case (length success)
+      (0 (response "No ticket canceled."))
+      (1 (response "Ticket ~a was canceled." (format-ticket-numbers success)))
+      (t (response "Tickets ~a were canceled." (format-ticket-numbers success))))))
 
 
 ;;;; Listing
@@ -308,14 +368,6 @@ assign created created-by id))))
 
 (defun %ago (utime)
   (format-time (- (get-universal-time) utime) :precission 1))
-
-(defun format-ticket (ticket &key (show-status t))
-  (response "#~d ~@[~a~@T~]~a~@[~70T[~a]~]~%"
-            (ticket-id ticket)
-            (and show-status (ticket-status ticket))
-            (truncate-string (ticket-description ticket) 60 "...")
-            (and (ticket-assign ticket)
-                 (fill-string (truncate-string (ticket-assign ticket) 8 ".") 8))))
 
 (defun list-tickets (&optional kind user)
   (let* ((status (resolve-status kind))

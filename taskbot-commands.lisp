@@ -98,10 +98,8 @@
 
 (defun continue-pending-output (to)
   (let ((output (gethash to *pending-output*)))
-    (when (eq (cadr (output-record-mark output)) '---more---)
+    (when (and output (eq (cadr (output-record-mark output)) '---more---))
       (pop (cdr (output-record-mark output))))))
-
-
 
 
 ;;; High level functions.
