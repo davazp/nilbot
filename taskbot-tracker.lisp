@@ -35,6 +35,11 @@
   user "TEXT"
   action "TEXT")
 
+(define-table word_index
+  word "TEXT PRIMARY KEY ASC"
+  id "INTEGER")
+
+
 (defclass ticket ()
   ((id
     :initarg :id
@@ -69,6 +74,10 @@
     :type string
     :reader ticket-created-by)))
 
+;;; Split a description in words.
+(defun get-description-words (description)
+  (mapcar #'string-upcase (split-string description " -+=,.!?()<>[]{}#$%&")))
+
 (defun create-ticket (context description &key (type "TASK") (status "TODO")
                       assign (created (get-universal-time)) created-by)
   (let ((ticket
@@ -82,17 +91,15 @@
                         :created-by created-by)))
     (prog1 ticket
       (sqlite:execute-non-query *database* "
-INSERT INTO tickets(
-   type,
-   description,
-   context,
-   status,
-   assign,
-   created,
-   created_by)
+INSERT INTO tickets(type, description, context, status, assign, created, created_by)
 VALUES(?, ?, ?, ?, ?, ?, ?)" type description context
 status assign created created-by)
-      (setf (slot-value ticket 'id) (sqlite:last-insert-rowid *database*)))))
+      (let ((id (sqlite:last-insert-rowid *database*)))
+        (setf (slot-value ticket 'id) id)
+        ;; Store words in word_index
+        (dolist (word (get-description-words description))
+          (sqlite:execute-non-query *database* "
+INSERT INTO word_index(word, id) VALUES(?, ?)" word id))))))
 
 
 (defun save-ticket (ticket)
@@ -329,5 +336,16 @@ assign created created-by id))))
     ((:documentation "List the tickets created or assignated to USER."))
   (list-tickets kind user))
 
+(define-command search (&unparsed-argument words)
+    ((:documentation "Search the tickets whose description contains a list of words."))
+  (let* ((word-list (get-description-words words))
+         (sentence (format nil "SELECT * FROM tickets
+                                WHERE ID IN
+                                (SELECT id FROM word_index WHERE ~{~*word=?~^ OR ~})" word-list))
+         (result (apply #'%sql-query sentence word-list)))
+    (if (null result)
+        (response "No tickets.")
+        (dolist (ticket result)
+          (format-ticket ticket)))))
 
 ;;; taskbot-tracker.lisp ends here
