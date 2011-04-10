@@ -54,7 +54,7 @@
       or mark the ticket #N as finished with
       : ,done N
       To limit the =list= command to tickets in a given status, type
-      : ,limit <status>
+      : ,list <status>
       Finally, you can search tickets with
       : ,search <some words>=.
 
