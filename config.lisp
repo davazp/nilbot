@@ -21,7 +21,7 @@
 
 ;;; Change the following variables according to your preferences.
 
-(defvar *default-irc-nickname* "taskbot")
+(defvar *default-irc-nickname* "tb")
 (defvar *default-irc-server*   "irc.freenode.org")
 (defvar *default-irc-port*     6667)
 (defvar *default-prefix*       #\,)
