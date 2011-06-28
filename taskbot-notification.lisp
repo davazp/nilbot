@@ -81,7 +81,8 @@ UPDATE notifications SET sentp=1 WHERE id=?" (notification-id notification)))
 (defun join-handler (message)
   (let* ((context (irc:source message))
          (notifications (list-notifications context)))
-    (immediate-response-to context "You have ~[no~:;~:*~a~] news:" (length notifications))
+    (when notifications
+      (immediate-response-to context "You have ~a~ news:" (length notifications)))
     (dolist (x notifications)
       (immediate-response-to context "~70a ~a ago"
                              (notification-description x)
