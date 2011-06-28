@@ -42,6 +42,7 @@
     (setf *uptime* (get-universal-time))
     (irc:add-hook *irc* 'irc:irc-privmsg-message 'privmsg-handler)
     (irc:add-hook *irc* 'irc-cap-message 'cap-handler)
+    (irc:add-hook *irc* 'irc:irc-join-message 'join-handler)
     ;; Enable IDENTIFY-MSG capability if avalaible.
     (irc::send-irc-message *irc* :cap "req" "identify-msg")
     (dolist (chan channels)

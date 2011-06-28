@@ -43,7 +43,7 @@
     :initarg :sentp
     :reader notification-sent-p)))
 
- (defun %list-to-notification (list)
+(defun %list-to-notification (list)
   (destructuring-bind (id timestamp context description sentp)
       list
     (make-instance 'notification
@@ -78,6 +78,23 @@ FROM notifications WHERE context=? AND sentp=?" context (if only-pending 0 1))))
   (sqlite:execute-non-query *database* "
 UPDATE notifications SET sentp=1 WHERE id=?" (notification-id notification)))
 
+(defun join-handler (message)
+  (let* ((context (irc:source message))
+         (notifications (list-notifications context)))
+    (immediate-response-to "You have ~a news:" notifications)
+    (dolist (x notifications)
+      (immediate-response-to context "~70a ~a ago"
+                             (notification-description x)
+                             (format-time (- (get-universal-time) (notification-timestamp x))
+                                          :precission 2
+                                          :abbrev t))
+      (clear-notification x))))
+
+(defun notificate-to (context fmt &rest args)
+  (funcall #'create-notification context (apply #'format nil fmt args)))
+
+(defun notificate (fmt &rest args)
+  (apply #'notificate-to *context-from* fmt args))
 
 
 ;; taskbot-notification.lisp ends here

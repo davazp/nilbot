@@ -156,7 +156,6 @@
           (irc:arguments message)
         (process-message source target input)))))
 
-
 ;;; IRC Errors. Taskbot captures these errors and report in IRC chat.
 (define-condition taskbot-error (simple-error)
   nil)
@@ -326,10 +325,11 @@
           ;; Command with raw argument
           ((not (handler-parse-arguments-p handler))
            (funcall (handler-function handler) argument-line)))
-      (type-error (error)
-        (%error "The datum ~a was expected to be of type ~a."
-                (type-error-datum error)
-                (type-error-expected-type error))))
+      ;; (type-error (error)
+      ;;   (%error "The datum ~a was expected to be of type ~a."
+      ;;           (type-error-datum error)
+      ;;           (type-error-expected-type error)))
+      )
     (finish-pending-output)))
 
 

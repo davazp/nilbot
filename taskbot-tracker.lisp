@@ -142,8 +142,8 @@ assign created created-by id))))
 
 (defun %sql-simple-query (sql &rest args)
   (let ((result
-         (multiple-value-list
-          (apply #'sqlite:execute-one-row-m-v *database* sql args))))
+          (multiple-value-list
+           (apply #'sqlite:execute-one-row-m-v *database* sql args))))
     (and result (%list-to-ticket result))))
 
 (defun query-ticket (id)
@@ -262,6 +262,24 @@ assign created created-by id))))
 
 ;;;; Marking
 
+;;; Check if TICKET was created by NICKNAME.
+(defun ownership (ticket nickname)
+  (string= (ticket-created-by ticket) nickname))
+
+;;; Notificate to the creator of a ticket a change in the status. USER
+;;; is the nickname of the user who made the change. ACTION is the
+;;; verb in simple past of the action. TICKET is the ticket which
+;;; changed.
+(defun notificate-change (user action ticket)
+  (unless (ownership ticket user)
+    (notificate-to (ticket-created-by ticket)
+                   "The user ~a ~a the ticket #~a: ~a"
+                   user
+                   action
+                   (ticket-id ticket)
+                   (truncate-string (ticket-description ticket) 30 "..."))))
+
+
 (define-command take (number1 &rest others-numbers)
     ((:documentation "Take tickets."))
   (do-tickets-numbers (ticket (cons number1 others-numbers) success)
@@ -269,7 +287,8 @@ assign created created-by id))))
         (unless (ticket-todo-p ticket)
           (%error "You cannot take ticket #~d. It is not opened." (ticket-id ticket)))
         (setf (ticket-assign ticket) *context-from*)
-        (setf (ticket-status ticket) "STARTED"))
+        (setf (ticket-status ticket) "STARTED")
+        (notificate-change *context-from* "took" ticket))
     (case (length success)
       (0 (response "No tickets taken."))
       (1 (response "Ticket ~a taken by ~a."
@@ -290,7 +309,8 @@ assign created created-by id))))
         (when (ticket-todo-p ticket)
           (%error "Ticket #~d is opened." (ticket-id ticket)))
         (setf (ticket-assign ticket) nil)
-        (setf (ticket-status ticket) "TODO"))
+        (setf (ticket-status ticket) "TODO")
+        (notificate-change *context-from* "gave up" ticket))
     (case (length success)
       (0 (response "No ticket was given up."))
       (1 (response "Ticket ~a given up."  (format-ticket-numbers success)))
@@ -302,12 +322,19 @@ assign created created-by id))))
       (cond
         ((ticket-todo-p ticket)
          (setf (ticket-assign ticket) *context-from*)
-         (setf (ticket-status ticket) "DONE"))
+         (setf (ticket-status ticket) "DONE")
+         (notificate-change *context-from* "finished" ticket)
+         (when (ownership ticket *context-from*)
+          (notificate-to (ticket-created-by ticket) "The user ~a finished the ticket #~a: ~a"
+                         *context-from*
+                         (ticket-id ticket)
+                         (truncate-string (ticket-description ticket) 30 "..."))))
         ((ticket-started-p ticket)
          (unless (or (string= (ticket-assign ticket) *context-from*)
                      (string= *context-permission* "admin"))
            (%error "You have not permissions to close ticket #~d." (ticket-id ticket)))
-         (setf (ticket-status ticket) "DONE"))
+         (setf (ticket-status ticket) "DONE")
+         (notificate-change *context-from* "finished" ticket))
         ((ticket-closed-p ticket)
          (%error "Ticked #~d is already closed." (ticket-id ticket)))
         (t
@@ -324,12 +351,14 @@ assign created created-by id))))
       (cond
         ((ticket-todo-p ticket)
          (setf (ticket-assign ticket) *context-from*)
-         (setf (ticket-status ticket) "CANCELED"))
+         (setf (ticket-status ticket) "CANCELED")
+         (notificate-change *context-from* "canceled" ticket))
         ((ticket-started-p ticket)
          (unless (or (string= (ticket-assign ticket) *context-from*)
                      (string= *context-permission* "admin"))
            (%error "You cannot close ticket #~d." (ticket-id ticket)))
-         (setf (ticket-status ticket) "CANCELED"))
+         (setf (ticket-status ticket) "CANCELED")
+         (notificate-change *context-from* "canceled" ticket))
         ((ticket-closed-p ticket)
          (%error "Ticket #~d is already closed." (ticket-id ticket)))
         (t
