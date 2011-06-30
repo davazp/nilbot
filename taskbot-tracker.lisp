@@ -79,6 +79,12 @@
     :initform (make-pset)
     :reader %ticket-logs)))
 
+(defmethod print-object ((x ticket) stream)
+  (print-unreadable-object (x stream :type t)
+    (format stream "#~a \"~a\""
+            (ticket-id x)
+            (truncate-string (ticket-description x) 20 "..."))))
+
 (defun query-ticket (id)
   (or (get-instance-by-value 'ticket 'id id)
       (%error "Unknown ticket identifier #~a." id)))

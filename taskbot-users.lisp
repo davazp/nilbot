@@ -31,6 +31,10 @@
     :type string
     :accessor user-permission)))
 
+(defmethod print-object ((x user) stream)
+  (print-unreadable-object (x stream :type t)
+    (format stream "~a" (user-nickname x))))
+
 (defun find-user (name)
   (get-instance-by-value 'user 'nickname name))
 
