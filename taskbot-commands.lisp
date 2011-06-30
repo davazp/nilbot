@@ -165,6 +165,12 @@
   (signal 'taskbot-error :format-control fmt :format-arguments args))
 
 
+(defun get-user-permissions (nickname)
+  (let ((user (find-user nickname)))
+    (if user
+        (user-permission user)
+        "nobody")))
+
 (defun process-message (origin target message)
   ;; If the IDENTIFY-MSG is avalaible, we require the user is
   ;; identified in the services of the IRC server.
@@ -195,7 +201,7 @@
             (to (if (me-p target) origin target)))
         (let ((*context-from* origin)
               (*context-to* to)
-              (*context-permission* (user-permission origin)))
+              (*context-permission* (get-user-permissions origin)))
           (handler-case
               (run-command cmd arg)
             (taskbot-error (error)

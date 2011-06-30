@@ -46,12 +46,19 @@
    (status
     :initarg :status
     :type string
+    :initform "TODO"
     :accessor ticket-status
     :index t)
    (created-by
     :initarg :created-by
     :type string
     :reader ticket-created-by
+    :index t)
+   (assign
+    :initarg :assign
+    :type (or string null)
+    :initform nil
+    :accessor ticket-assign
     :index t)
    ;; Non-indexed slots
    (description
@@ -62,23 +69,19 @@
     :initarg :context
     :type string
     :reader ticket-context)
-   (assign
-    :initarg :assign
-    :type (or string null)
-    :accessor ticket-assign)
-   ;; Timestamp at creation.
-   (created
+   (created                             ; timestamp at creation.
     :initarg :created
     :type integer
+    :initform (get-universal-time)
     :reader ticket-created)
-   ;; This slot keeps a pset with the logs related to this ticket.
+   ; This slot keeps a pset with the logs related to this ticket.
    (logs
     :initform (make-pset)
     :reader %ticket-logs)))
 
 (defun query-ticket (id)
-  (and (get-instance-by-value 'ticket 'id id)
-       (%error "Unknown ticket identifier #~a." id)))
+  (or (get-instance-by-value 'ticket 'id id)
+      (%error "Unknown ticket identifier #~a." id)))
 
 (defpclass ticket-log ()
   ((user
@@ -210,7 +213,7 @@
 
 (define-command add (&unparsed-argument descr)
     ((:documentation "Add a ticket."))
-  (create-instance 'ticket :description descr :created-by *context-from* :contxt *context-to*)
+  (create-instance 'ticket :description descr :created-by *context-from* :context *context-to*)
   (response "Ticket #~a added for ~a." *ticket-count* *context-to*))
 
 (define-command info (id)
@@ -370,16 +373,18 @@
 (defun %ago (utime)
   (format-time (- (get-universal-time) utime) :precission 1))
 
-(defun list-tickets (&optional kind user)
+(defun list-tickets (kind &optional user)
   (let* ((status (resolve-status kind))
          (show-status (> (length status) 1)))
+    ;; TODO: It hardly could be worse. Please, fix me!
     (let ((ticket-list
-           ;; TODO: It hardly could be worse. Please, fix me!
-           (sort (intersection
-                  (get-instance-by-value 'ticket 'status status)
-                  (union (get-instance-by-value 'ticket 'created-by user)
-                         (get-instance-by-value 'ticket 'assign user)))
-                 #'< :key #'ticket-created)))
+           (loop for status in (mklist status)
+                 append (get-instances-by-value 'ticket 'status status))))
+      (when user
+        (setf ticket-list
+              (intersection ticket-list
+                            (union (get-instances-by-value 'ticket 'created-by user)
+                                   (get-instances-by-value 'ticket 'assign user)))))
       (if (null ticket-list)
          (response "No tickets.")
          (dolist (ticket ticket-list)
