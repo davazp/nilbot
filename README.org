@@ -3,7 +3,7 @@
   Taskbot is a task manager IRC Bot written in Common Lisp.
 
 *** Getting started
-    Taskbot has as requirements [[http://common-lisp.net/project/cl-irc/][cl-irc]] and [[http://common-lisp.net/project/cl-sqlite/][cl-sqlite]]. Both are
+    Taskbot has as requirements [[http://common-lisp.net/project/cl-irc/][cl-irc]] and [[http://common-lisp.net/project/elephant/][elephant]]. Both are
     avalaible via [[http://www.quicklisp.org/][quicklisp]] and it is the recommended way to install
     it.
 
@@ -17,10 +17,17 @@
 
     #+BEGIN_SRC common-lisp
     (asdf:load-system :taskbot)
-    (taskbot:setup)
     #+END_SRC
 
-    It will ask you some information. Finally, you can start taskbot with
+    You will need to introduce yourself to taskbot, so you can type
+    #+BEGIN_SRC common-lisp
+    (add-user "YOUR-NICK" "admin")
+    (add-channel "#YOUR-CHANNEL")
+    #+END_SRC
+    in the taskbot package to add the first user and channel
+    respectively.
+
+    Finally, you can start taskbot with
     : (taskbot:start)
 
 *** Introduction
@@ -56,7 +63,7 @@
       To limit the =list= command to tickets in a given status, type
       : ,list <status>
       Finally, you can search tickets with
-      : ,search <some words>=.
+      : ,search <some words>.
 
 ***** Permissions
       Taskbot provides different categories of users: /undesirable/,
