@@ -29,9 +29,8 @@
 ;;; support really if the server supports it.
 (irc::create-irc-message-classes (:cap))
 
-;;; This is executed on load time
-
-(open-store `(:CLSQL (:SQLITE3 ,(namestring *database-pathname*))))
+(unless *store-controller*
+  (open-store `(:CLSQL (:SQLITE3 ,(namestring *database-pathname*)))))
 
 (defun start-and-wait (&key
                        (nickname *default-irc-nickname*)

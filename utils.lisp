@@ -331,7 +331,7 @@
 
 ;;; Alias for `make-instance'. It is used with Elephan classes not to
 ;;; forget the side-effects of this function.
-(defun create-instance (class &rest args &key)
+(defun create-instance (class &rest args &key &allow-other-keys)
   (apply #'make-instance class args))
 
 

@@ -80,7 +80,7 @@
   (and (get-instance-by-value 'ticket 'id id)
        (%error "Unknown ticket identifier #~a." id)))
 
-(defpclass tiket-log ()
+(defpclass ticket-log ()
   ((user
     :initarg :user
     :type user

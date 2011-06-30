@@ -60,7 +60,9 @@
       (clear-notification x))))
 
 (defun notificate-to (context fmt &rest args)
-  (funcall #'create-notification context (apply #'format nil fmt args)))
+  (create-instance 'notification
+                   :context context
+                   :description (apply #'format nil fmt args)))
 
 (defun notificate (fmt &rest args)
   (apply #'notificate-to *context-from* fmt args))
