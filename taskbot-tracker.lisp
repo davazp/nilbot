@@ -382,13 +382,16 @@
       (t
        (%error "Wrong status `~a'." x)))))
 
+;;; Check if X is a compound status.
+(defun compound-status-p (x)
+  (not (singlep (resolve-status x))))
+
 
 (defun %ago (utime)
   (format-time (- (get-universal-time) utime) :precission 1))
 
 (defun list-tickets (kind &optional user)
-  (let* ((status (resolve-status kind))
-         (show-status (> (length status) 1)))
+  (let* ((status (resolve-status kind)))
     ;; TODO: It hardly could be worse. Please, fix me!
     (let ((ticket-list
            (loop for status in (mklist status)
@@ -398,18 +401,25 @@
               (intersection ticket-list
                             (union (get-instances-by-value 'ticket 'created-by user)
                                    (get-instances-by-value 'ticket 'assign user)))))
-      (if (null ticket-list)
-         (response "No tickets.")
-         (dolist (ticket ticket-list)
-           (format-ticket ticket :show-status show-status))))))
+      ticket-list)))
 
 (define-command list (&optional (kind "TODO"))
     ((:documentation "Show the last tickets."))
-  (list-tickets kind))
+  (let ((ticket-list (list-tickets kind))
+        (show-status (compound-status-p kind)))
+    (if (null ticket-list)
+        (response "No tickets.")
+        (dolist (ticket ticket-list)
+          (format-ticket ticket :show-status show-status)))))
 
 (define-command inbox (&optional (kind "OPEN") (user *context-from*))
     ((:documentation "List the tickets created or assignated to USER."))
-  (list-tickets kind user))
+    (let ((ticket-list (list-tickets kind user))
+        (show-status (compound-status-p kind)))
+    (if (null ticket-list)
+        (response "No tickets.")
+        (dolist (ticket ticket-list)
+          (format-ticket ticket :show-status show-status)))))
 
 (define-command search (&unparsed-argument words)
     ((:documentation "Search the tickets whose description contains a list of words."))
