@@ -126,8 +126,8 @@
           (setf (get-value word *word-index*)
                 (make-pset :items (list ticket)))))))
 
-(defun find-tickets-with-word (word)
-  (let ((pset (get-value word *word-index*)))
+(defun search-tickets-with-word (word)
+  (let ((pset (get-value (string-upcase word) *word-index*)))
     (if pset
         (pset-list pset)
         nil)))
@@ -135,7 +135,7 @@
 (defun search-ticket (list-of-words)
   (reduce #'intersection
           (loop for word in list-of-words
-                append (find-tickets-with-word word))))
+                collect (search-tickets-with-word word))))
 
 
 ;;; Split a description in words.
@@ -213,8 +213,15 @@
 
 (define-command add (&unparsed-argument descr)
     ((:documentation "Add a ticket."))
-  (create-instance 'ticket :description descr :created-by *context-from* :context *context-to*)
-  (response "Ticket #~a added for ~a." *ticket-count* *context-to*))
+  (let ((words (get-description-words descr))
+        (ticket
+         (create-instance 'ticket
+                          :description descr
+                          :created-by *context-from*
+                          :context *context-to*)))
+    (dolist (word words)
+      (add-word-to-index word ticket))
+    (response "Ticket #~a added for ~a." *ticket-count* *context-to*)))
 
 (define-command info (id)
     ((:documentation "Show information about the specified ticket."))
@@ -400,7 +407,7 @@
 
 (define-command search (&unparsed-argument words)
     ((:documentation "Search the tickets whose description contains a list of words."))
-  (let ((result (search-ticket words)))
+  (let ((result (search-ticket (get-description-words words))))
     (if (null result)
         (response "No tickets.")
         (dolist (ticket result)
