@@ -1,7 +1,7 @@
 ;;                                                               -*- Lisp -*-
-;; taskbot.asd --
+;; taskbot-users.lisp --
 ;;
-;; Copyright (C) 2009,2011 David Vazquez
+;; Copyright (C) 2011 David Vazquez
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -17,22 +17,29 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
 
-(defsystem :taskbot
-  :name "Taskbot"
-  :description "A task manager IRC Bot written in Common Lisp."
-  :depends-on (:cl-irc :elephant :sqlite)
-  :serial t
-  :components
-  ((:file "packages")
-   (:file "config")
-   (:file "utils")
-   (:file "taskbot")
-   (:file "taskbot-parser")
-   (:file "taskbot-users")
-   (:file "taskbot-channels")
-   (:file "taskbot-commands")
-   (:file "taskbot-notification")
-   (:file "taskbot-system")
-   (:file "taskbot-tracker")))
+(in-package :taskbot)
 
-;; taskbot.asd ends here
+(defpclass user ()
+  ((nickname
+    :initarg :nickname
+    :type string
+    :initform (required-arg)
+    :reader user-nickname
+    :index t)
+   (permission
+    :initarg :permission
+    :type string
+    :accessor user-permission)))
+
+(defun find-user (name)
+  (get-instance-by-value 'user 'nickname name))
+
+(defun add-user (name permission)
+  (if (find-user name)
+      (%error "The user ~a exists.")
+      (create-instance 'user :nickname name :permission permission)))
+
+(defun list-users ()
+  (get-instances-by-class 'user))
+
+;;; taskbot-users.lisp ends here

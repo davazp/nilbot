@@ -19,153 +19,125 @@
 
 (in-package :taskbot)
 
-(define-table tickets
-  id "INTEGER PRIMARY KEY ASC"
-  type "TEXT"
-  description "TEXT"
-  context "TEXT"
-  status "TEXT"
-  assign "TEXT"
-  created "INTEGER"
-  created_by "TEXT")
+(defpclass ticket-box ()
+  ((value
+    :initform 0
+    :accessor ticket-box-value)))
 
-(define-table tickets_logs
-  ticket "INTEGER"
-  date "INTEGER"
-  user "TEXT"
-  action "TEXT")
+(defvar *ticket-box*
+  (let ((tn (get-instances-by-class 'ticket-box)))
+    (assert (endp (cdr tn)))
+    (if tn
+        (car tn)
+        (create-instance 'ticket-box))))
 
-(define-table word_index
-  word "TEXT"
-  id "INTEGER")
+;;; Persistent variable whose value is the count of tickets in the
+;;; database. This is used to set new and unique ID to the tickets.
+(define-symbol-macro *ticket-count*
+    (ticket-box-value *ticket-box*))
 
-(defclass ticket ()
-  ((id
-    :initarg :id
+(defpclass ticket ()
+  (;; Indexed slots
+   (id
     :type integer
-    :reader ticket-id)
-   (type
-    :initarg :type
+    :initform (incf *ticket-count*)
+    :reader ticket-id
+    :index t)
+   (status
+    :initarg :status
     :type string
-    :reader ticket-type)
+    :accessor ticket-status
+    :index t)
+   (created-by
+    :initarg :created-by
+    :type string
+    :reader ticket-created-by
+    :index t)
+   ;; Non-indexed slots
    (description
     :initarg :description
     :type string
-    :reader ticket-description)
+    :accessor ticket-description)
    (context
     :initarg :context
     :type string
     :reader ticket-context)
-   (status
-    :initarg :status
-    :type string
-    :accessor ticket-status)
    (assign
     :initarg :assign
     :type (or string null)
     :accessor ticket-assign)
+   ;; Timestamp at creation.
    (created
     :initarg :created
     :type integer
     :reader ticket-created)
-   (created-by
-    :initarg :created-by
+   ;; This slot keeps a pset with the logs related to this ticket.
+   (logs
+    :initform (make-pset)
+    :reader %ticket-logs)))
+
+(defun query-ticket (id)
+  (and (get-instance-by-value 'ticket 'id id)
+       (%error "Unknown ticket identifier #~a." id)))
+
+(defpclass tiket-log ()
+  ((user
+    :initarg :user
+    :type user
+    :reader ticket-log-user)
+   (timestamp
+    :initarg :timestamp
+    :type integer
+    :initform (get-universal-time)
+    :reader ticket-log-timestamp)
+   (action
+    :initarg :action
     :type string
-    :reader ticket-created-by)))
+    :initform (required-arg)
+    :reader ticket-log-action)))
+
+(defun add-log (ticket user action)
+  (insert-item (create-instance 'ticket-log :user user :action action)
+               (%ticket-logs ticket)))
+
+(defmacro do-ticket-logs ((var ticket) &body body)
+  `(map-pset (lambda (,var) ,@body)
+             (%ticket-logs ,ticket)))
+
+
+;;; This variable keeps a btree which maps single WORDS to tickets
+;;; whose description contains that word. Unsurprisingly it is used to
+;;; search across the tickets.
+(defvar *word-index*
+  (or (get-from-root "word-index")
+      (progn
+        (let ((btree (make-btree)))
+          (add-to-root "word-index" btree)
+          btree))))
+
+(defun add-word-to-index (word ticket)
+  (let ((word (string-upcase word)))
+    (let ((pset (get-value word *word-index*)))
+      (if pset
+          (insert-item ticket pset)
+          (setf (get-value word *word-index*)
+                (make-pset :items (list ticket)))))))
+
+(defun find-tickets-with-word (word)
+  (let ((pset (get-value word *word-index*)))
+    (if pset
+        (pset-list pset)
+        nil)))
+
+(defun search-ticket (list-of-words)
+  (reduce #'intersection
+          (loop for word in list-of-words
+                append (find-tickets-with-word word))))
+
 
 ;;; Split a description in words.
 (defun get-description-words (description)
   (mapcar #'string-upcase (split-string description " -+=,.!?()<>[]{}#$%&")))
-
-(defun create-ticket (context description &key (type "TASK") (status "TODO")
-                      assign (created (get-universal-time)) created-by)
-  (let ((ticket
-         (make-instance 'ticket
-                        :type type
-                        :description description
-                        :context context
-                        :status status
-                        :assign assign
-                        :created created
-                        :created-by created-by)))
-    (prog1 ticket
-      (sqlite:execute-non-query *database* "
-INSERT INTO tickets(type, description, context, status, assign, created, created_by)
-VALUES(?, ?, ?, ?, ?, ?, ?)" type description context
-status assign created created-by)
-      (let ((id (sqlite:last-insert-rowid *database*)))
-        (setf (slot-value ticket 'id) id)
-        ;; Store words in word_index
-        (dolist (word (get-description-words description))
-          (sqlite:execute-non-query *database* "
-INSERT INTO word_index(word, id) VALUES(?, ?)" word id))))))
-
-
-(defun save-ticket (ticket)
-  (if (slot-boundp ticket 'id)
-      ;; If ID is bound, the ticket has already been stored, then we
-      ;; update the database with the current slots values.
-      (with-slots (id type description context status assign created created-by)
-          ticket
-        (sqlite:execute-non-query *database* "
-UPDATE tickets SET
-   type=?,
-   description=?,
-   context=?,
-   status=?,
-   assign=?,
-   created=?,
-   created_by=?
-   WHERE id=?" type description context status
-assign created created-by id))))
-
-(defmacro with-ticket-edit ((var n) &body code)
-  `(let ((,var (query-ticket ,n)))
-     ;; We do NOT unwind-protect this, because we want to avoid
-     ;; database changes on error.
-     (prog1 (progn ,@code)
-       (save-ticket ,var))))
-
-(defun %list-to-ticket (list)
-  (destructuring-bind (id type description context status
-                          assign created created-by)
-      list
-    (make-instance 'ticket
-                   :id id                   :type type
-                   :description description :context context
-                   :status status           :assign assign
-                   :created-by created-by   :created created)))
-
-
-(defun %sql-query (sql &rest args)
-  (mapcar #'%list-to-ticket (apply #'sqlite:execute-to-list *database* sql args)))
-
-(defun %sql-simple-query (sql &rest args)
-  (let ((result
-          (multiple-value-list
-           (apply #'sqlite:execute-one-row-m-v *database* sql args))))
-    (and result (%list-to-ticket result))))
-
-(defun query-ticket (id)
-  (unless (integerp id)
-    (%error "An integer was expected as ticket id."))
-  (or (%sql-simple-query "SELECT * FROM tickets WHERE id=?" id)
-      (%error "ticket #~a not found." id)))
-
-(defun list-last-tickets (context &key status user)
-  (apply #'%sql-query
-         (format nil
-                 "SELECT * FROM tickets WHERE context=?
-                  ~@[AND (~{~*status=?~^ OR ~}~])
-                  ~@[AND (assign=? OR created_by=?)~]
-                  ORDER BY created DESC"
-                 (mklist status)
-                 user)
-         `(,context
-           ,@(mklist status)
-           ,@(if user
-                 (list user user)
-                 nil))))
 
 
 ;;; Helper functions
@@ -214,10 +186,9 @@ assign created created-by id))))
                        (,errors nil ,collect-error))
        (let ((,list ,ticket-list))
          (dolist (,n ,list)
-           (with-ticket-edit (,ticket ,n)
+           (let ((,ticket (query-ticket ,n)))
              (handler-case
-                 (progn
-                   ,code
+                 (prog1 (progn ,code)
                    (,collect-success ,ticket))
                (taskbot-error (error)
                  (,collect-error error)))))
@@ -239,8 +210,8 @@ assign created created-by id))))
 
 (define-command add (&unparsed-argument descr)
     ((:documentation "Add a ticket."))
-  (let ((ticket (create-ticket *context-to* descr :created-by *context-from*)))
-    (response "Ticket #~a added for ~a." (ticket-id ticket) *context-to*)))
+  (create-instance 'ticket :description descr :created-by *context-from* :contxt *context-to*)
+  (response "Ticket #~a added for ~a." *ticket-count* *context-to*))
 
 (define-command info (id)
     ((:documentation "Show information about the specified ticket."))
@@ -257,8 +228,9 @@ assign created created-by id))))
         (response "created by: ~a ~a ago"
                   (ticket-created-by ticket)
                   (%ago (ticket-created ticket))))
-    (response "status: ~(~a~) ~@[by ~a~]" (ticket-status ticket) (ticket-assign ticket))))
-
+    (response "status: ~(~a~) ~@[by ~a~]"
+              (ticket-status ticket)
+              (ticket-assign ticket))))
 
 ;;;; Marking
 
@@ -401,7 +373,13 @@ assign created created-by id))))
 (defun list-tickets (&optional kind user)
   (let* ((status (resolve-status kind))
          (show-status (> (length status) 1)))
-    (let ((ticket-list (list-last-tickets *context-to* :status status :user user)))
+    (let ((ticket-list
+           ;; TODO: It hardly could be worse. Please, fix me!
+           (sort (intersection
+                  (get-instance-by-value 'ticket 'status status)
+                  (union (get-instance-by-value 'ticket 'created-by user)
+                         (get-instance-by-value 'ticket 'assign user)))
+                 #'< :key #'ticket-created)))
       (if (null ticket-list)
          (response "No tickets.")
          (dolist (ticket ticket-list)
@@ -417,11 +395,7 @@ assign created created-by id))))
 
 (define-command search (&unparsed-argument words)
     ((:documentation "Search the tickets whose description contains a list of words."))
-  (let* ((word-list (get-description-words words))
-         (sentence (format nil "SELECT * FROM tickets
-                                WHERE context=? AND (status=\"TODO\" or status=\"STARTED\") AND
-                                ID IN (SELECT id FROM word_index WHERE ~{~*word=?~^ OR ~})" word-list))
-         (result (apply #'%sql-query sentence *context-to* word-list)))
+  (let ((result (search-ticket words)))
     (if (null result)
         (response "No tickets.")
         (dolist (ticket result)

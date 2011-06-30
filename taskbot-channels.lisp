@@ -1,7 +1,5 @@
 ;;                                                               -*- Lisp -*-
-;; taskbot.asd --
-;;
-;; Copyright (C) 2009,2011 David Vazquez
+;; taskbot-channels.lisp -- 
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -15,24 +13,31 @@
 ;;
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
-;;
+;; 
 
-(defsystem :taskbot
-  :name "Taskbot"
-  :description "A task manager IRC Bot written in Common Lisp."
-  :depends-on (:cl-irc :elephant :sqlite)
-  :serial t
-  :components
-  ((:file "packages")
-   (:file "config")
-   (:file "utils")
-   (:file "taskbot")
-   (:file "taskbot-parser")
-   (:file "taskbot-users")
-   (:file "taskbot-channels")
-   (:file "taskbot-commands")
-   (:file "taskbot-notification")
-   (:file "taskbot-system")
-   (:file "taskbot-tracker")))
+(in-package :taskbot)
 
-;; taskbot.asd ends here
+(defpclass channel ()
+  ((name
+    :initarg :name
+    :type string
+    :reader channel-name
+    :index t)))
+
+(defun find-channel (name)
+  (get-instance-by-value 'channel 'name name))
+
+(defun add-channel (name)
+  (if (find-channel name)
+      (%error "Channel exists.")
+      (create-instance 'channel :name name)))
+
+(defun delete-channel (name)
+  (let ((channel (find-channel name)))
+    (when channel
+      (drop-instance channel))))
+
+(defun list-channels ()
+  (get-instances-by-class 'channel))
+
+;; taskbot-channels.lisp ends here

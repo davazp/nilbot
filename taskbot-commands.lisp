@@ -195,7 +195,7 @@
             (to (if (me-p target) origin target)))
         (let ((*context-from* origin)
               (*context-to* to)
-              (*context-permission* (get-user-permission origin)))
+              (*context-permission* (user-permission origin)))
           (handler-case
               (run-command cmd arg)
             (taskbot-error (error)
@@ -219,9 +219,6 @@
 
 (defun permissionp (x)
   (find x *permissions* :test #'string-ci=))
-
-(defun get-user-permission (user)
-  (or (nth-value 2 (db-query-user user)) "nobody"))
 
 (defun permission= (perm1 perm2)
   (declare (permission perm1 perm2))

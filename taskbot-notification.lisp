@@ -19,64 +19,32 @@
 
 (in-package :taskbot)
 
-(define-table notifications
-  id "INTEGER PRIMARY KEY ASC"
-  timestamp "INTEGER"
-  context "TEXT"
-  description "TEXT"
-  sentp "BOOLEAN")
-
-(defclass notification ()
-  ((id
-    :initarg :id
-    :reader notification-id)
+(defpclass notification ()
+  ((context
+    :initarg :context
+    :initform (required-arg)
+    :reader notification-context
+    :index t)
    (timestamp
     :initarg :timestamp
+    :initform (get-universal-time)
     :reader notification-timestamp)
-   (context
-    :initarg :context
-    :reader notification-context)
    (description
     :initarg :description
+    :initform (required-arg)
     :reader notification-description)
    (sentp
-    :initarg :sentp
+    :initform nil
     :reader notification-sent-p)))
 
-(defun %list-to-notification (list)
-  (destructuring-bind (id timestamp context description sentp)
-      list
-    (make-instance 'notification
-                   :id id
-                   :timestamp timestamp
-                   :context context
-                   :description description
-                   :sentp (not (zerop sentp)))))
-
-(defun create-notification (context description)
-  (sqlite:execute-non-query *database* "
-INSERT INTO notifications(timestamp, context, description, sentp)
-VALUES (?, ?, ?, ?)" (get-universal-time) context description 0)
-  (let ((id (sqlite:last-insert-rowid *database*)))
-    (query-notification id)))
-
-(defun query-notification (id)
-  (%list-to-notification
-   (multiple-value-list
-    (sqlite:execute-one-row-m-v *database* "
-SELECT id,timestamp,context,description,sentp 
-FROM notifications WHERE id=?" id))))
-
 (defun list-notifications (context &optional (only-pending t))
-  (let ((result (sqlite:execute-to-list *database* "
-SELECT id,timestamp,context,description,sentp
-FROM notifications WHERE context=? AND sentp=?" context (if only-pending 0 1))))
-    (mapcar #'%list-to-notification result)))
+  (let ((notifications (get-instances-by-value 'notification 'context context)))
+    (if only-pending
+        (remove t notifications :key #'notification-sent-p)
+        notifications)))
 
 (defun clear-notification (notification)
-  (setf (slot-value notification 'sentp) t)
-  (sqlite:execute-non-query *database* "
-UPDATE notifications SET sentp=1 WHERE id=?" (notification-id notification)))
+  (setf (slot-value notification 'sentp) t))
 
 (defun join-handler (message)
   (let* ((context (irc:source message))

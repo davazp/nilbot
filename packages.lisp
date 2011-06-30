@@ -18,7 +18,7 @@
 ;;
 
 (defpackage :taskbot
-  (:use :cl)
+  (:use :cl :elephant)
   (:export #:setup #:start #:stop))
 
 ;; packages.lisp ends here
