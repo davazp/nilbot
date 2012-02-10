@@ -182,7 +182,7 @@
   (let (prefix)
     ;; Check if the message is a taskbot command
     (cond
-      ((char= (char message 0) *default-prefix*)
+      ((eql (char message 0) *default-prefix*)
        (setq prefix 1))
       ;; 'taskbot: ' messages
       ((let* ((mark (format nil "~a: " (irc:nickname (irc:user *irc*))))
