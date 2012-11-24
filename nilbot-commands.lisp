@@ -22,9 +22,8 @@
 ;;; User who invoked nilbot, target of nilbot ouptut and the user
 ;;; permissions respectively. They are dynamically bound when a
 ;;; privmsg is received.
-(defvar *context-from*)
-(defvar *context-to*)
-(defvar *context-permission*)
+(defvar *user*)
+(defvar *recipient*)
 
 ;;; non-NIL if the server supports the capability IDENTIFY-MSG. We use
 ;;; this in order to be confident of the user and does not require
@@ -104,37 +103,38 @@
 
 ;;; High level functions.
 
-(defun more (&optional (to *context-to*))
+(defun more (&optional (to *recipient*))
   (store-pending-output to '---more---))
 
+;;; non-nil if the response must be immediate, instead of continuable.
+(defvar *immediate-response-p* nil)
+
 (defun response-to (to fmt &rest args)
-  (when (zerop (mod (1+ (count-pending-output to)) *max-output-lines*))
-    (more to))
-  (store-pending-output to (apply #'format nil fmt args)))
+  (cond
+    (*immediate-response-p*
+     (irc:privmsg *irc* to (apply #'format nil fmt args)))
+    (t
+     (when (zerop (mod (1+ (count-pending-output to)) *max-output-lines*))
+       (more to))
+     (store-pending-output to (apply #'format nil fmt args)))))
 
 (defun response (fmt &rest args)
-  (apply #'response-to *context-to* fmt args))
+  (apply #'response-to *recipient* fmt args))
 
-;;; Immediate output (no continuable)
 
-(defun immediate-response-to (to fmt &rest args)
-  (irc:privmsg *irc* to (apply #'format nil fmt args)))
-
-(defun immediate-response (fmt &rest args)
-  (irc:privmsg *irc* *context-to* (apply #'format nil fmt args)))
 
 (defun action-to (to fmt &rest args)
   (irc::ctcp *irc* to (format nil "ACTION ~?" fmt args)))
 
 (defun action (fmt &rest args)
-  (apply #'action-to *context-to* fmt args))
+  (apply #'action-to *recipient* fmt args))
 
 
-(defun nickname ()
+(defun myself ()
   (irc:nickname (irc:user *irc*)))
 
-(defun me-p (str)
-  (string= str (nickname)))
+(defun myselfp (str)
+  (string= str (myself)))
 
 (defun cap-handler (message)
   (destructuring-bind (target &optional response capabilities)
@@ -165,12 +165,6 @@
   (signal 'nilbot-error :format-control fmt :format-arguments args))
 
 
-(defun get-user-permissions (nickname)
-  (let ((user (find-user nickname)))
-    (if user
-        (user-permission user)
-        "nobody")))
-
 (defun process-message (origin target message)
   ;; If the IDENTIFY-MSG is avalaible, we require the user is
   ;; identified in the services of the IRC server.
@@ -190,30 +184,29 @@
          (and (integerp posi) (zerop posi)))
        (setq prefix (length (format nil "~a: " (irc:nickname (irc:user *irc*))))))
       ;; queries
-      ((me-p target)
+      ((myselfp target)
        (setq prefix 0))
       (t
        (return-from process-message nil)))
     ;; Invoke the command
     (with-input-from-string (stream message :start prefix)
       (let ((cmd (parse-command stream))
-            (arg (subseq (or (read-line stream nil) " ") 1))
-            (to (if (me-p target) origin target)))
-        (let ((*context-from* origin)
-              (*context-to* to)
-              (*context-permission* (get-user-permissions origin)))
-          (handler-case
-              (run-command cmd arg)
-            (nilbot-error (error)
-              (unless (permission= *context-permission* "undesirable")
-                (apply #'immediate-response
-                       (simple-condition-format-control error)
-                       (simple-condition-format-arguments error))))
-            (program-error (error)
-              (declare (ignorable error))
-              ;; FIXME: program-error is more general that
-              ;; this. Implement me correctly!
-              (immediate-response "Bad argument numbers"))))))))
+            (arg (subseq (or (read-line stream nil) " ") 1)))
+        (let ((*user* origin)
+              (*recipient* (if (myselfp target) origin target)))
+          (unless (permission= (user-permission *user*) "undesirable")
+            (handler-case (run-command cmd arg)
+              (nilbot-error (error)
+                (let ((*immediate-response-p* t))
+                  (apply #'response
+                         (simple-condition-format-control error)
+                         (simple-condition-format-arguments error))))
+              (program-error (error)
+                (declare (ignorable error))
+                ;; FIXME: program-error is more general that
+                ;; this. Implement me correctly!
+                (let ((*immediate-response-p*))
+                  (response "Bad argument numbers"))))))))))
 
 ;;; Permissions functions
 
@@ -237,7 +230,7 @@
 
 ;;; Require PERM priviledge level.
 (defun require-permission (perm)
-  (unless (permission<= perm *context-permission*)
+  (unless (permission<= perm (user-permission *user*))
     (if (find (char perm 0) "aeiou")
         (%error "You need be an ~a to do this." perm)
         (%error "You need be a ~a to do this." perm))))
@@ -315,7 +308,7 @@
 (defun run-command (command argument-line)
   (let ((handler (find-handler command)))
     (when (and handler (not (handler-keep-last-output-p handler)))
-      (reset-pending-output *context-to*))
+      (reset-pending-output *recipient*))
     (handler-case
         (cond
           ((null handler)

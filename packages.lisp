@@ -19,6 +19,28 @@
 
 (defpackage :nilbot
   (:use :cl :elephant)
-  (:export #:setup #:start #:stop))
+  (:export #:start
+           #:stop
+           ;; Channels
+           #:add-channel
+           #:list-channels
+           #:delete-channel
+           ;; Users
+           #:add-user
+           #:list-users
+           #:user-permissionn
+           ;; Commands
+           #:define-command
+           #:&unparsed-argument
+           #:subcommand-dispatch
+           ;; Command context
+           #:myself
+           ;; Command responses
+           #:*immediate-response-p*
+           #:response-to
+           #:response
+           #:action-to
+           #:action
+           #:more))
 
 ;; packages.lisp ends here

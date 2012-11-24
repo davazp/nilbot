@@ -65,7 +65,7 @@
                "Hei, God dag"
                "Pozdravljeni!"
                "Merhaba")))
-    (response "~a ~a" (random-element msg) *context-from*)))
+    (response "~a ~a" (random-element msg) *user*)))
 
 
 (defun list-commands ()
@@ -82,7 +82,7 @@
          ;; the permissions settings.
          (avalaible-command-p (command)
            (let ((handler (find-handler command)))
-             (permission<= (handler-permission handler) *context-permission*))))
+             (permission<= (handler-permission handler) (user-permission *user*)))))
     ;; List avalaible commands
     (response "Avalaible commands: ~{~a~#[.~; and ~:;, ~]~}"
               (remove-if-not #'avalaible-command-p (list-commands)))))
@@ -91,7 +91,7 @@
 (defun command-docstring (command)
   (let ((handler (find-handler command)))
     (and handler
-         (permission<= (handler-permission handler) *context-permission*)
+         (permission<= (handler-permission handler) (user-permission *user*))
          (handler-documentation handler))))
 
 (define-command help (&optional command)
@@ -123,7 +123,7 @@
   (do-hash-table (command handler) *command-handlers*
     ;; Require it is a command (not an alias) and it is avalaible.
     (when (and (handlerp handler)
-               (permission<= (handler-permission handler) *context-permission*))
+               (permission<= (handler-permission handler) (user-permission *user*)))
       (let ((docstring (handler-documentation handler)))
         (when docstring
           (when (every (lambda (w) (search w docstring :test #'char-ci=)) words)
@@ -161,8 +161,8 @@
       (join channel)
       (add-channel channel))
     (if (singlep channels)
-      (response "~a joined to ~a channel." (nickname) (car channels))
-      (response "~a joined to ~{~a~#[~; and ~;, ~]~} channels." (nickname) channels))))
+      (response "~a joined to ~a channel." (myself) (car channels))
+      (response "~a joined to ~{~a~#[~; and ~;, ~]~} channels." (myself) channels))))
 
 (define-command part (chan1 &rest channels)
     ((:documentation "Delete channel from the channel-list of nilbot.")
@@ -172,18 +172,16 @@
       (part channel)
       (delete-channel channel))
     (if (singlep channels)
-        (response "~a parted from ~a channel." (nickname) (car channels))
-        (response "~a parted from ~{~a~#[~; and ~;, ~]~} channels." (nickname) channels))))
+        (response "~a parted from ~a channel." (myself) (car channels))
+        (response "~a parted from ~{~a~#[~; and ~;, ~]~} channels." (myself) channels))))
 
 (define-command channels ()
     ((:documentation "Show the the channel-list of nilbot.")
      (:permission "admin"))
   (let ((list (list-channels)))
     (if (null list)
-        (response "~a is not in any channel yet." (nickname))
-        (response "~a is in ~{~a~#[.~; and ~:;, ~]~}"
-                  (nickname)
-                  (mapcar #'channel-name list)))))
+        (response "~a is not in any channel yet." (myself))
+        (response "~a is in ~{~a~#[.~; and ~:;, ~]~}" (myself) list))))
 
 
 (define-command user (subcommand &rest args)
@@ -225,16 +223,13 @@ USER APPPOINT <nickname> <permission>
 
 (define-command whois (name)
     ((:documentation "Print information about an user."))
-  (let ((user (find-user name)))
-    (if (not user)
-        (response "User ~a does not exist." name)
-        (if (find (char (user-permission user) 0) "aeiou")
-            (response "~a is an ~a." (user-nickname user) (user-permission user))
-            (response "~a is a ~a."  (user-nickname user) (user-permission user))))))
+  (if (find (char (user-permission name) 0) "aeiou")
+      (response "~a is an ~a." name (user-permission name))
+      (response "~a is a ~a."  name (user-permission name))))
 
 (define-command whoami ()
     ((:documentation "Print information about you."))
-  (irc-handler-whois *context-from*))
+  (irc-handler-whois *user*))
 
 (define-command bye ()
     ((:documentation "Quit nilbot.")
@@ -244,6 +239,6 @@ USER APPPOINT <nickname> <permission>
 (define-command more ()
     ((:documentation "Show pending output")
      (:keep-last-output-p t))
-  (continue-pending-output *context-to*))
+  (continue-pending-output *recipient*))
 
 ;;; nilbot-system.lisp ends here

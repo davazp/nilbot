@@ -38,12 +38,22 @@
 (defun find-user (name)
   (get-instance-by-value 'user 'nickname name))
 
+(defmethod user-nickname ((nickname string))
+  nickname)
+
+(defmethod user-permission ((nickname string))
+  (let ((user (find-user nickname)))
+    (if user
+        (user-permission user)
+        "nobody")))
+
 (defun add-user (name permission)
   (if (find-user name)
       (%error "The user ~a exists.")
-      (create-instance 'user :nickname name :permission permission)))
+      (create-instance 'user :nickname name :permission permission))
+  (values))
 
 (defun list-users ()
-  (get-instances-by-class 'user))
+  (mapcar #'user-nickname (get-instances-by-class 'user)))
 
 ;;; nilbot-users.lisp ends here
