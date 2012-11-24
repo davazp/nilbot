@@ -1,5 +1,5 @@
 ;;                                                               -*- Lisp -*-
-;; taskbot.asd --
+;; nilbot.asd --
 ;;
 ;; Copyright (C) 2009,2011 David Vazquez
 ;;
@@ -17,22 +17,22 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
 
-(defsystem :taskbot
-  :name "Taskbot"
-  :description "A task manager IRC Bot written in Common Lisp."
+(defsystem :nilbot
+  :name "nilbot"
+  :description "An IRC Bot written in Common Lisp."
   :depends-on (:cl-irc :elephant :sqlite)
   :serial t
   :components
   ((:file "packages")
    (:file "config")
    (:file "utils")
-   (:file "taskbot")
-   (:file "taskbot-parser")
-   (:file "taskbot-users")
-   (:file "taskbot-channels")
-   (:file "taskbot-commands")
-   (:file "taskbot-notification")
-   (:file "taskbot-system")
-   (:file "taskbot-tracker")))
+   (:file "nilbot")
+   (:file "nilbot-parser")
+   (:file "nilbot-users")
+   (:file "nilbot-channels")
+   (:file "nilbot-commands")
+   (:file "nilbot-notification")
+   (:file "nilbot-system")
+   (:file "nilbot-tracker")))
 
-;; taskbot.asd ends here
+;; nilbot.asd ends here

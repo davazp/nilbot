@@ -1,5 +1,5 @@
 ;;                                                               -*- Lisp -*-
-;; taskbot-parser.lisp --
+;; nilbot-parser.lisp --
 ;;
 ;; Copyright (C) 2009,2011 David Vazquez
 ;;
@@ -16,7 +16,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
-(in-package :taskbot)
+(in-package :nilbot)
 
 (defun whitespace-char-p (ch)
   (or (char= ch #\space)
@@ -60,4 +60,4 @@
   (read-until stream #'whitespace-char-p :eof-error-p nil))
 
 
-;; taskbot-parser.lisp ends here
+;; nilbot-parser.lisp ends here

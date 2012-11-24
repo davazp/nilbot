@@ -1,5 +1,5 @@
 ;;                                                               -*- Lisp -*-
-;; taskbot-channels.lisp -- 
+;; nilbot-channels.lisp --
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -13,9 +13,9 @@
 ;;
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
-;; 
+;;
 
-(in-package :taskbot)
+(in-package :nilbot)
 
 (defpclass channel ()
   ((name
@@ -40,4 +40,4 @@
 (defun list-channels ()
   (get-instances-by-class 'channel))
 
-;; taskbot-channels.lisp ends here
+;; nilbot-channels.lisp ends here

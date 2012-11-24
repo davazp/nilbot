@@ -1,5 +1,5 @@
 ;;                                                               -*- Lisp -*-
-;; taskbot-system.lisp --
+;; nilbot-system.lisp --
 ;;
 ;; Copyright (C) 2009,2011 David Vazquez
 ;;
@@ -16,11 +16,11 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
-(in-package :taskbot)
+(in-package :nilbot)
 
 (define-command version ()
-    ((:documentation "Show the version of taskbot."))
-  (response "taskbot ~{~a~^.~} running on ~a (~a)"
+    ((:documentation "Show the version of nilbot."))
+  (response "nilbot ~{~a~^.~} running on ~a (~a)"
             *version*
             (lisp-implementation-type)
             (lisp-implementation-version)))
@@ -146,7 +146,7 @@
             (software-version)))
 
 (define-command uptime ()
-    ((:documentation "Tell how long has taskbot been running."))
+    ((:documentation "Tell how long has nilbot been running."))
   (let ((seconds (- (get-universal-time) *uptime*)))
     (if (zerop seconds)
         (response "I have not been running!")
@@ -154,7 +154,7 @@
 
 
 (define-command join (chan1 &rest others)
-    ((:documentation "Add channel to the channel-list of taskbot.")
+    ((:documentation "Add channel to the channel-list of nilbot.")
      (:permission "admin"))
   (let ((channels (cons chan1 others)))
     (dolist (channel channels)
@@ -165,7 +165,7 @@
       (response "~a joined to ~{~a~#[~; and ~;, ~]~} channels." (nickname) channels))))
 
 (define-command part (chan1 &rest channels)
-    ((:documentation "Delete channel from the channel-list of taskbot.")
+    ((:documentation "Delete channel from the channel-list of nilbot.")
      (:permission "admin"))
   (let ((channels (cons chan1 channels)))
     (dolist (channel channels)
@@ -176,7 +176,7 @@
         (response "~a parted from ~{~a~#[~; and ~;, ~]~} channels." (nickname) channels))))
 
 (define-command channels ()
-    ((:documentation "Show the the channel-list of taskbot.")
+    ((:documentation "Show the the channel-list of nilbot.")
      (:permission "admin"))
   (let ((list (list-channels)))
     (if (null list)
@@ -237,7 +237,7 @@ USER APPPOINT <nickname> <permission>
   (irc-handler-whois *context-from*))
 
 (define-command bye ()
-    ((:documentation "Quit taskbot.")
+    ((:documentation "Quit nilbot.")
      (:permission "admin"))
   (stop))
 
@@ -246,4 +246,4 @@ USER APPPOINT <nickname> <permission>
      (:keep-last-output-p t))
   (continue-pending-output *context-to*))
 
-;;; taskbot-system.lisp ends here
+;;; nilbot-system.lisp ends here

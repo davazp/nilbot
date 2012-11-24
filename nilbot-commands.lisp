@@ -1,5 +1,5 @@
 ;;                                                               -*- Lisp -*-
-;; taskbot-commands.lisp --
+;; nilbot-commands.lisp --
 ;;
 ;; Copyright (C) 2009,2011 David Vazquez
 ;;
@@ -17,9 +17,9 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
 
-(in-package :taskbot)
+(in-package :nilbot)
 
-;;; User who invoked taskbot, target of taskbot ouptut and the user
+;;; User who invoked nilbot, target of nilbot ouptut and the user
 ;;; permissions respectively. They are dynamically bound when a
 ;;; privmsg is received.
 (defvar *context-from*)
@@ -35,7 +35,7 @@
 
 ;;; IRC Flood is often an impediment to produce useful output. We
 ;;; implement here an important feature: continuable output. Every
-;;; response of taskbot command is truncated, but it is recorded in
+;;; response of nilbot command is truncated, but it is recorded in
 ;;; order to the user will be capable of continue the output with the
 ;;; ,more command.
 
@@ -157,12 +157,12 @@
         (process-message source target input)))))
 
 ;;; IRC Errors. Taskbot captures these errors and report in IRC chat.
-(define-condition taskbot-error (simple-error)
+(define-condition nilbot-error (simple-error)
   nil)
 
-;;; Signal a taskbot error.
+;;; Signal a nilbot error.
 (defun %error (fmt &rest args)
-  (signal 'taskbot-error :format-control fmt :format-arguments args))
+  (signal 'nilbot-error :format-control fmt :format-arguments args))
 
 
 (defun get-user-permissions (nickname)
@@ -180,11 +180,11 @@
         (return-from process-message)))
   ;; Process the message
   (let (prefix)
-    ;; Check if the message is a taskbot command
+    ;; Check if the message is a nilbot command
     (cond
       ((eql (char message 0) *default-prefix*)
        (setq prefix 1))
-      ;; 'taskbot: ' messages
+      ;; 'nilbot: ' messages
       ((let* ((mark (format nil "~a: " (irc:nickname (irc:user *irc*))))
               (posi (search mark message)))
          (and (integerp posi) (zerop posi)))
@@ -204,7 +204,7 @@
               (*context-permission* (get-user-permissions origin)))
           (handler-case
               (run-command cmd arg)
-            (taskbot-error (error)
+            (nilbot-error (error)
               (unless (permission= *context-permission* "undesirable")
                 (apply #'immediate-response
                        (simple-condition-format-control error)
@@ -340,7 +340,7 @@
   (and (not (null arglist))
        (eq (car arglist) '&unparsed-argument)))
 
-;;; Define a taskbot command. You can see taskbot-system.lisp for
+;;; Define a nilbot command. You can see nilbot-system.lisp for
 ;;; several examples of usage.
 (defmacro define-command (name (&rest args) options &body code)
   (let ((documentation (cadr (assoc :documentation options)))
@@ -386,4 +386,4 @@
           (%error "~a is an invalid subcommand." ,subcommand-var))))))
 
 
-;; taskbot-commands.lisp ends here
+;; nilbot-commands.lisp ends here
