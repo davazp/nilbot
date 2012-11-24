@@ -65,7 +65,7 @@
                "Hei, God dag"
                "Pozdravljeni!"
                "Merhaba")))
-    (response "~a ~a" (random-element msg) *context-from*)))
+    (response "~a ~a" (random-element msg) *user*)))
 
 
 (defun list-commands ()
@@ -232,7 +232,7 @@ USER APPPOINT <nickname> <permission>
 
 (define-command whoami ()
     ((:documentation "Print information about you."))
-  (irc-handler-whois *context-from*))
+  (irc-handler-whois *user*))
 
 (define-command bye ()
     ((:documentation "Quit nilbot.")

@@ -22,8 +22,9 @@
 ;;; User who invoked nilbot, target of nilbot ouptut and the user
 ;;; permissions respectively. They are dynamically bound when a
 ;;; privmsg is received.
-(defvar *context-from*)
-(defvar *context-to*)
+(defvar *user*)
+(defvar *recipient*)
+
 (defvar *context-permission*)
 
 ;;; non-NIL if the server supports the capability IDENTIFY-MSG. We use
@@ -200,8 +201,8 @@
       (let ((cmd (parse-command stream))
             (arg (subseq (or (read-line stream nil) " ") 1))
             (to (if (myselfp target) origin target)))
-        (let ((*context-from* origin)
-              (*context-to* to)
+        (let ((*user* origin)
+              (*recipient* to)
               (*context-permission* (get-user-permissions origin)))
           (handler-case
               (run-command cmd arg)
