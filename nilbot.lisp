@@ -28,6 +28,7 @@
 ;;; This is an internal interface of cl-irc, however we need cap
 ;;; support really if the server supports it.
 (irc::create-irc-message-classes (:cap))
+(unexport 'irc-cap-message)
 
 (unless *store-controller*
   (open-store `(:CLSQL (:SQLITE3 ,(namestring *database-pathname*)))))
