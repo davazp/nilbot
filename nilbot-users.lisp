@@ -1,5 +1,5 @@
 ;;                                                               -*- Lisp -*-
-;; taskbot-users.lisp --
+;; nilbot-users.lisp --
 ;;
 ;; Copyright (C) 2011 David Vazquez
 ;;
@@ -17,7 +17,7 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
 
-(in-package :taskbot)
+(in-package :nilbot)
 
 (defpclass user ()
   ((nickname
@@ -46,4 +46,4 @@
 (defun list-users ()
   (get-instances-by-class 'user))
 
-;;; taskbot-users.lisp ends here
+;;; nilbot-users.lisp ends here

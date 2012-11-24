@@ -17,16 +17,16 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
 
-(in-package :taskbot)
+(in-package :nilbot)
 
 ;;; Change the following variables according to your preferences.
 
-(defvar *default-irc-nickname* "taskbot")
+(defvar *default-irc-nickname* "nilbot")
 (defvar *default-irc-server*   "irc.freenode.org")
 (defvar *default-irc-port*     6667)
 (defvar *default-prefix*       #\,)
 
 (defvar *database-pathname*
-  #P"taskbot.db")
+  #P"nilbot.db")
 
 ;; config.lisp ends here

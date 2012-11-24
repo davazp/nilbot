@@ -1,5 +1,5 @@
 ;;                                                               -*- Lisp -*-
-;; taskbot.lisp --
+;; nilbot.lisp --
 ;;
 ;; Copyright (C) 2009,2011 David Vazquez
 ;;
@@ -16,7 +16,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
-(in-package :taskbot)
+(in-package :nilbot)
 
 (defvar *version* '(0 1))
 (defvar *uptime*)
@@ -53,23 +53,23 @@
   (irc:read-message-loop *irc*))
 
 (defun start (&rest options &key &allow-other-keys)
-  "Start taskbot."
+  "Start nilbot."
   (flet ((run () (apply #'start-and-wait options)))
     ;; Use threads in order to keep the slime repl avalaible.
     #+sbcl (sb-thread:make-thread #'run)
     #-sbcl (run)))
 
 (defun join (channel)
-  "Join taskbot to a IRC channel."
+  "Join nilbot to a IRC channel."
   (irc:join *irc* channel))
 
 (defun part (channel)
-  "Part taskbot to a IRC channel."
+  "Part nilbot to a IRC channel."
   (irc:part *irc* channel))
 
 (defun stop (&optional (message "bye!"))
-  "Stop taskbot."
+  "Stop nilbot."
   (irc:quit *irc* message)
   (values))
 
-;; taskbot.lisp ends here
+;; nilbot.lisp ends here

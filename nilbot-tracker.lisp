@@ -1,5 +1,5 @@
 ;;                                                               -*- Lisp -*-
-;; taskbot-system.lisp --
+;; nilbot-system.lisp --
 ;;
 ;; Copyright (C) 2009,2011 David Vazquez
 ;;
@@ -17,7 +17,7 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
 
-(in-package :taskbot)
+(in-package :nilbot)
 
 (defpclass ticket-box ()
   ((value
@@ -199,7 +199,7 @@
              (handler-case
                  (prog1 (progn ,code)
                    (,collect-success ,ticket))
-               (taskbot-error (error)
+               (nilbot-error (error)
                  (,collect-error error)))))
          ;;
          (let ((,success-tickets ,success))
@@ -429,4 +429,4 @@
         (dolist (ticket result)
           (format-ticket ticket)))))
 
-;;; taskbot-tracker.lisp ends here
+;;; nilbot-tracker.lisp ends here
