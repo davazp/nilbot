@@ -24,6 +24,12 @@
            ;; Channels
            #:add-channel
            #:list-channels
-           #:delete-channel))
+           #:delete-channel
+           ;; Users
+           #:user-nickname
+           #:user-permission
+           #:add-user
+           #:find-user
+           #:list-users))
 
 ;; packages.lisp ends here
