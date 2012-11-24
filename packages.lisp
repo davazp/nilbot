@@ -29,11 +29,9 @@
            #:user-nickname
            #:user-permissionn
            #:add-user
-           #:find-user
            #:list-users
            ;; Commands
            #:define-command
-           #:get-user-permissions
            #:&unparsed-argument
            #:subcommand-dispatch
            ;; Command context

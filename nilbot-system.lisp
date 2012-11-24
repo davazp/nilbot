@@ -82,7 +82,7 @@
          ;; the permissions settings.
          (avalaible-command-p (command)
            (let ((handler (find-handler command)))
-             (permission<= (handler-permission handler) *context-permission*))))
+             (permission<= (handler-permission handler) (user-nickname *user*)))))
     ;; List avalaible commands
     (response "Avalaible commands: ~{~a~#[.~; and ~:;, ~]~}"
               (remove-if-not #'avalaible-command-p (list-commands)))))
@@ -91,7 +91,7 @@
 (defun command-docstring (command)
   (let ((handler (find-handler command)))
     (and handler
-         (permission<= (handler-permission handler) *context-permission*)
+         (permission<= (handler-permission handler) (user-nickname *user*))
          (handler-documentation handler))))
 
 (define-command help (&optional command)
@@ -123,7 +123,7 @@
   (do-hash-table (command handler) *command-handlers*
     ;; Require it is a command (not an alias) and it is avalaible.
     (when (and (handlerp handler)
-               (permission<= (handler-permission handler) *context-permission*))
+               (permission<= (handler-permission handler) (user-permission *user*)))
       (let ((docstring (handler-documentation handler)))
         (when docstring
           (when (every (lambda (w) (search w docstring :test #'char-ci=)) words)
