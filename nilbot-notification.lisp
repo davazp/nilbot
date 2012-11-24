@@ -66,7 +66,7 @@
                    :description (apply #'format nil fmt args)))
 
 (defun notificate (fmt &rest args)
-  (apply #'notificate-to *context-from* fmt args))
+  (apply #'notificate-to *user* fmt args))
 
 
 ;; nilbot-notification.lisp ends here
