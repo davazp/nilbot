@@ -27,9 +27,23 @@
            #:delete-channel
            ;; Users
            #:user-nickname
-           #:user-permission
+           #:user-permissionn
            #:add-user
            #:find-user
-           #:list-users))
+           #:list-users
+           ;; Commands
+           #:define-command
+           #:get-user-permissions
+           #:&unparsed-argument
+           #:subcommand-dispatch
+           ;; Command context
+           #:myself
+           ;; Command responses
+           #:*immediate-response-p*
+           #:response-to
+           #:response
+           #:action-to
+           #:action
+           #:more))
 
 ;; packages.lisp ends here

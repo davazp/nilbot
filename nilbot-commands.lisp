@@ -107,21 +107,22 @@
 (defun more (&optional (to *context-to*))
   (store-pending-output to '---more---))
 
+;;; non-nil if the response must be immediate, instead of continuable.
+(defvar *immediate-response-p* nil)
+
 (defun response-to (to fmt &rest args)
-  (when (zerop (mod (1+ (count-pending-output to)) *max-output-lines*))
-    (more to))
-  (store-pending-output to (apply #'format nil fmt args)))
+  (cond
+    (*immediate-response-p*
+     (irc:privmsg *irc* to (apply #'format nil fmt args)))
+    (t
+     (when (zerop (mod (1+ (count-pending-output to)) *max-output-lines*))
+       (more to))
+     (store-pending-output to (apply #'format nil fmt args)))))
 
 (defun response (fmt &rest args)
   (apply #'response-to *context-to* fmt args))
 
-;;; Immediate output (no continuable)
 
-(defun immediate-response-to (to fmt &rest args)
-  (irc:privmsg *irc* to (apply #'format nil fmt args)))
-
-(defun immediate-response (fmt &rest args)
-  (irc:privmsg *irc* *context-to* (apply #'format nil fmt args)))
 
 (defun action-to (to fmt &rest args)
   (irc::ctcp *irc* to (format nil "ACTION ~?" fmt args)))
@@ -130,11 +131,11 @@
   (apply #'action-to *context-to* fmt args))
 
 
-(defun nickname ()
+(defun myself ()
   (irc:nickname (irc:user *irc*)))
 
-(defun me-p (str)
-  (string= str (nickname)))
+(defun myselfp (str)
+  (string= str (myself-nickname)))
 
 (defun cap-handler (message)
   (destructuring-bind (target &optional response capabilities)
@@ -190,7 +191,7 @@
          (and (integerp posi) (zerop posi)))
        (setq prefix (length (format nil "~a: " (irc:nickname (irc:user *irc*))))))
       ;; queries
-      ((me-p target)
+      ((myselfp target)
        (setq prefix 0))
       (t
        (return-from process-message nil)))
@@ -198,7 +199,7 @@
     (with-input-from-string (stream message :start prefix)
       (let ((cmd (parse-command stream))
             (arg (subseq (or (read-line stream nil) " ") 1))
-            (to (if (me-p target) origin target)))
+            (to (if (myselfp target) origin target)))
         (let ((*context-from* origin)
               (*context-to* to)
               (*context-permission* (get-user-permissions origin)))
@@ -213,7 +214,8 @@
               (declare (ignorable error))
               ;; FIXME: program-error is more general that
               ;; this. Implement me correctly!
-              (immediate-response "Bad argument numbers"))))))))
+              (let ((*immediate-response-p*))
+                (response "Bad argument numbers")))))))))
 
 ;;; Permissions functions
 

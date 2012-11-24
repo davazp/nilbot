@@ -161,8 +161,8 @@
       (join channel)
       (add-channel channel))
     (if (singlep channels)
-      (response "~a joined to ~a channel." (nickname) (car channels))
-      (response "~a joined to ~{~a~#[~; and ~;, ~]~} channels." (nickname) channels))))
+      (response "~a joined to ~a channel." (myself) (car channels))
+      (response "~a joined to ~{~a~#[~; and ~;, ~]~} channels." (myself) channels))))
 
 (define-command part (chan1 &rest channels)
     ((:documentation "Delete channel from the channel-list of nilbot.")
@@ -172,16 +172,16 @@
       (part channel)
       (delete-channel channel))
     (if (singlep channels)
-        (response "~a parted from ~a channel." (nickname) (car channels))
-        (response "~a parted from ~{~a~#[~; and ~;, ~]~} channels." (nickname) channels))))
+        (response "~a parted from ~a channel." (myself) (car channels))
+        (response "~a parted from ~{~a~#[~; and ~;, ~]~} channels." (myself) channels))))
 
 (define-command channels ()
     ((:documentation "Show the the channel-list of nilbot.")
      (:permission "admin"))
   (let ((list (list-channels)))
     (if (null list)
-        (response "~a is not in any channel yet." (nickname))
-        (response "~a is in ~{~a~#[.~; and ~:;, ~]~}" (nickname) list))))
+        (response "~a is not in any channel yet." (myself))
+        (response "~a is in ~{~a~#[.~; and ~:;, ~]~}" (myself) list))))
 
 
 (define-command user (subcommand &rest args)

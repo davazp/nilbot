@@ -48,15 +48,16 @@
 
 (defun join-handler (message)
   (let* ((context (irc:source message))
-         (notifications (list-notifications context)))
+         (notifications (list-notifications context))
+         (*immediate-response-p* t))
     (when notifications
-      (immediate-response-to context "You have ~a news:" (length notifications)))
+      (response-to context "You have ~a news:" (length notifications)))
     (dolist (x notifications)
-      (immediate-response-to context "~70a ~a ago"
-                             (notification-description x)
-                             (format-time (- (get-universal-time) (notification-timestamp x))
-                                          :precission 2
-                                          :abbrev t))
+      (response-to context "~70a ~a ago"
+                   (notification-description x)
+                   (format-time (- (get-universal-time) (notification-timestamp x))
+                                :precission 2
+                                :abbrev t))
       (clear-notification x))))
 
 (defun notificate-to (context fmt &rest args)
