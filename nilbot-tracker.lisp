@@ -224,10 +224,10 @@
          (create-instance 'ticket
                           :description descr
                           :created-by *user*
-                          :context *context-to*)))
+                          :context *recipient*)))
     (dolist (word words)
       (add-word-to-index word ticket))
-    (response "Ticket #~a added for ~a." *ticket-count* *context-to*)))
+    (response "Ticket #~a added for ~a." *ticket-count* *recipient*)))
 
 (define-command info (id)
     ((:documentation "Show information about the specified ticket."))

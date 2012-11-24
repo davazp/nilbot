@@ -105,7 +105,7 @@
 
 ;;; High level functions.
 
-(defun more (&optional (to *context-to*))
+(defun more (&optional (to *recipient*))
   (store-pending-output to '---more---))
 
 ;;; non-nil if the response must be immediate, instead of continuable.
@@ -121,7 +121,7 @@
      (store-pending-output to (apply #'format nil fmt args)))))
 
 (defun response (fmt &rest args)
-  (apply #'response-to *context-to* fmt args))
+  (apply #'response-to *recipient* fmt args))
 
 
 
@@ -129,7 +129,7 @@
   (irc::ctcp *irc* to (format nil "ACTION ~?" fmt args)))
 
 (defun action (fmt &rest args)
-  (apply #'action-to *context-to* fmt args))
+  (apply #'action-to *recipient* fmt args))
 
 
 (defun myself ()
@@ -318,7 +318,7 @@
 (defun run-command (command argument-line)
   (let ((handler (find-handler command)))
     (when (and handler (not (handler-keep-last-output-p handler)))
-      (reset-pending-output *context-to*))
+      (reset-pending-output *recipient*))
     (handler-case
         (cond
           ((null handler)

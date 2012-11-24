@@ -242,6 +242,6 @@ USER APPPOINT <nickname> <permission>
 (define-command more ()
     ((:documentation "Show pending output")
      (:keep-last-output-p t))
-  (continue-pending-output *context-to*))
+  (continue-pending-output *recipient*))
 
 ;;; nilbot-system.lisp ends here
