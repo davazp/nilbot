@@ -17,7 +17,10 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
 
-(in-package :nilbot)
+(defpackage :nilbot.tracker
+  (:use :cl :elephant :nilbot :nilbot.utils))
+
+(in-package :nilbot.tracker)
 
 (defpclass ticket-box ()
   ((value
@@ -29,7 +32,7 @@
     (assert (endp (cdr tn)))
     (if tn
         (car tn)
-        (create-instance 'ticket-box))))
+        (make-instance 'ticket-box))))
 
 ;;; Persistent variable whose value is the count of tickets in the
 ;;; database. This is used to set new and unique ID to the tickets.
@@ -87,7 +90,7 @@
 
 (defun query-ticket (id)
   (or (get-instance-by-value 'ticket 'id id)
-      (%error "Unknown ticket identifier #~a." id)))
+      (error "Unknown ticket identifier #~a." id)))
 
 (defpclass ticket-log ()
   ((user
@@ -106,7 +109,7 @@
     :reader ticket-log-action)))
 
 (defun add-log (ticket user action)
-  (insert-item (create-instance 'ticket-log :user user :action action)
+  (insert-item (make-instance 'ticket-log :user user :action action)
                (%ticket-logs ticket)))
 
 (defmacro do-ticket-logs ((var ticket) &body body)
@@ -199,7 +202,7 @@
              (handler-case
                  (prog1 (progn ,code)
                    (,collect-success ,ticket))
-               (nilbot-error (error)
+               (simple-error (error)
                  (,collect-error error)))))
          ;;
          (let ((,success-tickets ,success))
@@ -234,7 +237,7 @@
   (let ((ticket (query-ticket id)))
     (when (and (char/= (char (ticket-context ticket) 0) #\#)
                (string/= (ticket-context ticket) *user*))
-      (%error "This is a private ticket."))
+      (error "This is a private ticket."))
     (response "#~d ~a" (ticket-id ticket) (ticket-description ticket))
     (if (char= (char (ticket-context ticket) 0) #\#)
         (response "created by: ~a ~a ago at ~a channel"
@@ -273,7 +276,7 @@
   (do-tickets-numbers (ticket (cons number1 others-numbers) success)
       (progn
         (unless (ticket-todo-p ticket)
-          (%error "You cannot take ticket #~d. It is not opened." (ticket-id ticket)))
+          (error "You cannot take ticket #~d. It is not opened." (ticket-id ticket)))
         (setf (ticket-assign ticket) *user*)
         (setf (ticket-status ticket) "STARTED")
         (notificate-change *user* "took" ticket))
@@ -293,9 +296,9 @@
         (unless (or (string= (user-permission *user*) "admin")
                     (and (ticket-assign ticket)
                          (string= *user* (ticket-assign ticket))))
-          (%error "Ticket #~d was already taken." (ticket-id ticket)))
+          (error "Ticket #~d was already taken." (ticket-id ticket)))
         (when (ticket-todo-p ticket)
-          (%error "Ticket #~d is opened." (ticket-id ticket)))
+          (error "Ticket #~d is opened." (ticket-id ticket)))
         (setf (ticket-assign ticket) nil)
         (setf (ticket-status ticket) "TODO")
         (notificate-change *user* "gave up" ticket))
@@ -320,13 +323,13 @@
         ((ticket-started-p ticket)
          (unless (or (string= (ticket-assign ticket) *user*)
                      (string= (user-permission *user*) "admin"))
-           (%error "You have not permissions to close ticket #~d." (ticket-id ticket)))
+           (error "You have not permissions to close ticket #~d." (ticket-id ticket)))
          (setf (ticket-status ticket) "DONE")
          (notificate-change *user* "finished" ticket))
         ((ticket-closed-p ticket)
-         (%error "Ticked #~d is already closed." (ticket-id ticket)))
+         (error "Ticked #~d is already closed." (ticket-id ticket)))
         (t
-         (%error "You could not close the ticket #~d." (ticket-id ticket))))
+         (error "You could not close the ticket #~d." (ticket-id ticket))))
     (case (length success)
       (0 (response "No ticket marked as done."))
       (1 (response "Ticket ~a is done." (format-ticket-numbers success)))
@@ -344,13 +347,13 @@
         ((ticket-started-p ticket)
          (unless (or (string= (ticket-assign ticket) *user*)
                      (string= (user-permission *user*) "admin"))
-           (%error "You cannot close ticket #~d." (ticket-id ticket)))
+           (error "You cannot close ticket #~d." (ticket-id ticket)))
          (setf (ticket-status ticket) "CANCELED")
          (notificate-change *user* "canceled" ticket))
         ((ticket-closed-p ticket)
-         (%error "Ticket #~d is already closed." (ticket-id ticket)))
+         (error "Ticket #~d is already closed." (ticket-id ticket)))
         (t
-         (%error "You cannot close ticket #~d." (ticket-id ticket))))
+         (error "You cannot close ticket #~d." (ticket-id ticket))))
     (case (length success)
       (0 (response "No ticket canceled."))
       (1 (response "Ticket ~a was canceled." (format-ticket-numbers success)))
@@ -380,7 +383,7 @@
       ((some-of "ALL")
        (list "TODO" "STARTED" "DONE" "CANCELED"))
       (t
-       (%error "Wrong status `~a'." x)))))
+       (error "Wrong status `~a'." x)))))
 
 ;;; Check if X is a compound status.
 (defun compound-status-p (x)

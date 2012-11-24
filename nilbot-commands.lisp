@@ -156,15 +156,6 @@
           (irc:arguments message)
         (process-message source target input)))))
 
-;;; IRC Errors. Taskbot captures these errors and report in IRC chat.
-(define-condition nilbot-error (simple-error)
-  nil)
-
-;;; Signal a nilbot error.
-(defun %error (fmt &rest args)
-  (signal 'nilbot-error :format-control fmt :format-arguments args))
-
-
 (defun process-message (origin target message)
   ;; If the IDENTIFY-MSG is avalaible, we require the user is
   ;; identified in the services of the IRC server.
@@ -196,17 +187,11 @@
               (*recipient* (if (myselfp target) origin target)))
           (unless (permission= (user-permission *user*) "undesirable")
             (handler-case (run-command cmd arg)
-              (nilbot-error (error)
+              (simple-error (err)
                 (let ((*immediate-response-p* t))
                   (apply #'response
-                         (simple-condition-format-control error)
-                         (simple-condition-format-arguments error))))
-              (program-error (error)
-                (declare (ignorable error))
-                ;; FIXME: program-error is more general that
-                ;; this. Implement me correctly!
-                (let ((*immediate-response-p*))
-                  (response "Bad argument numbers"))))))))))
+                         (simple-condition-format-control err)
+                         (simple-condition-format-arguments err)))))))))))
 
 ;;; Permissions functions
 
@@ -232,8 +217,8 @@
 (defun require-permission (perm)
   (unless (permission<= perm (user-permission *user*))
     (if (find (char perm 0) "aeiou")
-        (%error "You need be an ~a to do this." perm)
-        (%error "You need be a ~a to do this." perm))))
+        (error "You need be an ~a to do this." perm)
+        (error "You need be a ~a to do this." perm))))
 
 
 
@@ -312,7 +297,7 @@
     (handler-case
         (cond
           ((null handler)
-           (%error "Unknown command"))
+           (error "Unknown command"))
           ;; Commands with parsed arguments
           ((handler-parse-arguments-p handler)
            (with-input-from-string (stream argument-line)
@@ -322,7 +307,7 @@
           ((not (handler-parse-arguments-p handler))
            (funcall (handler-function handler) argument-line)))
       ;; (type-error (error)
-      ;;   (%error "The datum ~a was expected to be of type ~a."
+      ;;   (error "The datum ~a was expected to be of type ~a."
       ;;           (type-error-datum error)
       ;;           (type-error-expected-type error)))
       )
@@ -376,7 +361,7 @@
                      (destructuring-bind ,args ,arguments-var
                        ,@code))))
          (t
-          (%error "~a is an invalid subcommand." ,subcommand-var))))))
+          (error "~a is an invalid subcommand." ,subcommand-var))))))
 
 
 ;; nilbot-commands.lisp ends here

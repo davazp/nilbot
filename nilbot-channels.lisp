@@ -29,7 +29,7 @@
 
 (defun add-channel (name)
   (if (find-channel name)
-      (%error "Channel exists.")
+      (error "Channel exists.")
       (create-instance 'channel :name name))
   (values))
 

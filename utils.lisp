@@ -17,18 +17,13 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
-(in-package :nilbot)
+(in-package :nilbot.utils)
 
 ;;;; Misc macros
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun symbolize (symbol1 symbol2)
     (intern (concatenate 'string (string symbol1) (string symbol2)))))
-
-(defmacro while (condition &body code)
-  `(do ()
-       ((not ,condition))
-     ,@code))
 
 (defmacro with-gensyms ((&rest vars) &body code)
   `(let ,(loop for i in vars
@@ -226,11 +221,6 @@
           (declare (ignorable ,key ,value))
           (unless ,morep (return))
           ((lambda () ,@code)))))))
-
-;;; Anaphoric IF.
-(defmacro aif (condition then &optional else)
-  `(let ((it ,condition))
-     (if it ,then ,else)))
 
 ;;; Return a random element of the sequence SEQ.
 (defun random-element (seq)

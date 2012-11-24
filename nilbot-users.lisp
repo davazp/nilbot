@@ -49,7 +49,7 @@
 
 (defun add-user (name permission)
   (if (find-user name)
-      (%error "The user ~a exists.")
+      (error "The user ~a exists." name)
       (create-instance 'user :nickname name :permission permission))
   (values))
 

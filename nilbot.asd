@@ -33,6 +33,8 @@
    (:file "nilbot-commands")
    (:file "nilbot-notification")
    (:file "nilbot-system")
-   (:file "nilbot-tracker")))
+   (:module "contrib"
+            :components
+            ((:file "nilbot-tracker")))))
 
 ;; nilbot.asd ends here

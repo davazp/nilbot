@@ -215,7 +215,7 @@ USER APPPOINT <nickname> <permission>
   (let ((user (find-user user)))
     (if user
         (if (permission= (user-permission user) "admin")
-            (%error "You cannot ban an admin.")
+            (error "You cannot ban an admin.")
             (setf (user-permission user) "undesirable"))
         (add-user user "undesirable")))
   (response "~a is an undesirable now" user))

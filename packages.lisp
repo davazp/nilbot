@@ -17,8 +17,33 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
 
+(defpackage :nilbot.utils
+  (:use :cl)
+  (:export #:symbolize
+           #:with-gensyms
+           #:with-collectors
+           #:with-collect
+           #:define-predicate-type
+           #:split-string
+           #:concat
+           #:join-strings
+           #:mklist
+           #:singlep
+           #:unlist
+           #:read-until
+           #:required-arg
+           #:do-hash-table
+           #:random-element
+           #:alphabetically<=
+           #:char-ci=
+           #:string-ci=
+           #:truncate-string
+           #:fill-string
+           #:format-time
+           #:create-instance))
+
 (defpackage :nilbot
-  (:use :cl :elephant)
+  (:use :cl :elephant :nilbot.utils)
   (:export #:start
            #:stop
            ;; Channels
@@ -34,6 +59,8 @@
            #:&unparsed-argument
            #:subcommand-dispatch
            ;; Command context
+           #:*user*
+           #:*recipient*
            #:myself
            ;; Command responses
            #:*immediate-response-p*
