@@ -49,7 +49,7 @@
   (irc::send-irc-message *irc* :cap "req" "identify-msg")
   (mapc #'join channels)
   (dolist (chan (list-channels))
-    (join (channel-name chan)))
+    (join chan))
   (irc:read-message-loop *irc*))
 
 (defun start (&rest options &key &allow-other-keys)

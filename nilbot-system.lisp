@@ -181,9 +181,7 @@
   (let ((list (list-channels)))
     (if (null list)
         (response "~a is not in any channel yet." (nickname))
-        (response "~a is in ~{~a~#[.~; and ~:;, ~]~}"
-                  (nickname)
-                  (mapcar #'channel-name list)))))
+        (response "~a is in ~{~a~#[.~; and ~:;, ~]~}" (nickname) list))))
 
 
 (define-command user (subcommand &rest args)

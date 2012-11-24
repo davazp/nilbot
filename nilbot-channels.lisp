@@ -30,14 +30,16 @@
 (defun add-channel (name)
   (if (find-channel name)
       (%error "Channel exists.")
-      (create-instance 'channel :name name)))
+      (create-instance 'channel :name name))
+  (values))
 
 (defun delete-channel (name)
   (let ((channel (find-channel name)))
     (when channel
-      (drop-instance channel))))
+      (drop-instance channel)))
+  (values))
 
 (defun list-channels ()
-  (get-instances-by-class 'channel))
+  (mapcar #'channel-name (get-instances-by-class 'channel)))
 
 ;; nilbot-channels.lisp ends here

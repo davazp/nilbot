@@ -19,6 +19,11 @@
 
 (defpackage :nilbot
   (:use :cl :elephant)
-  (:export #:setup #:start #:stop))
+  (:export #:start
+           #:stop
+           ;; Channels
+           #:add-channel
+           #:list-channels
+           #:delete-channel))
 
 ;; packages.lisp ends here
