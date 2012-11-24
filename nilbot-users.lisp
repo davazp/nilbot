@@ -35,10 +35,10 @@
   nickname)
 
 (defmethod user-permission ((nickname string))
-  (let ((user (find-user nickname))))
-  (if user
-      (user-permission user)
-      "nobody"))
+  (let ((user (find-user nickname)))
+    (if user
+        (user-permission user)
+        "nobody")))
 
 (defmethod print-object ((x user) stream)
   (print-unreadable-object (x stream :type t)
