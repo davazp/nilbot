@@ -64,10 +64,12 @@
            #:myself
            ;; Command responses
            #:*immediate-response-p*
-           #:response-to
            #:response
-           #:action-to
+           #:response-to
+           #:more
            #:action
-           #:more))
+           #:action-to
+           #:notificate
+           #:notificate-to))
 
 ;; packages.lisp ends here
