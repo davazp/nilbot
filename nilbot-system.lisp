@@ -82,7 +82,7 @@
          ;; the permissions settings.
          (avalaible-command-p (command)
            (let ((handler (find-handler command)))
-             (permission<= (handler-permission handler) (user-nickname *user*)))))
+             (permission<= (handler-permission handler) (user-permission *user*)))))
     ;; List avalaible commands
     (response "Avalaible commands: ~{~a~#[.~; and ~:;, ~]~}"
               (remove-if-not #'avalaible-command-p (list-commands)))))
@@ -91,7 +91,7 @@
 (defun command-docstring (command)
   (let ((handler (find-handler command)))
     (and handler
-         (permission<= (handler-permission handler) (user-nickname *user*))
+         (permission<= (handler-permission handler) (user-permission *user*))
          (handler-documentation handler))))
 
 (define-command help (&optional command)
@@ -223,12 +223,9 @@ USER APPPOINT <nickname> <permission>
 
 (define-command whois (name)
     ((:documentation "Print information about an user."))
-  (let ((user (find-user name)))
-    (if (not user)
-        (response "User ~a does not exist." name)
-        (if (find (char (user-permission user) 0) "aeiou")
-            (response "~a is an ~a." (user-nickname user) (user-permission user))
-            (response "~a is a ~a."  (user-nickname user) (user-permission user))))))
+  (if (find (char (user-permission name) 0) "aeiou")
+      (response "~a is an ~a." name (user-permission name))
+      (response "~a is a ~a."  name (user-permission name))))
 
 (define-command whoami ()
     ((:documentation "Print information about you."))

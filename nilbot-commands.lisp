@@ -134,7 +134,7 @@
   (irc:nickname (irc:user *irc*)))
 
 (defun myselfp (str)
-  (string= str (myself-nickname)))
+  (string= str (myself)))
 
 (defun cap-handler (message)
   (destructuring-bind (target &optional response capabilities)
@@ -192,9 +192,9 @@
     (with-input-from-string (stream message :start prefix)
       (let ((cmd (parse-command stream))
             (arg (subseq (or (read-line stream nil) " ") 1)))
-        (let ((*user* (or (find-user origin) origin))
+        (let ((*user* origin)
               (*recipient* (if (myselfp target) origin target)))
-          (unless (permission= (user-permissions *user*) "undesirable")
+          (unless (permission= (user-permission *user*) "undesirable")
             (handler-case (run-command cmd arg)
               (nilbot-error (error)
                 (let ((*immediate-response-p* t))
@@ -230,7 +230,7 @@
 
 ;;; Require PERM priviledge level.
 (defun require-permission (perm)
-  (unless (permission<= perm (user-permissions *user*))
+  (unless (permission<= perm (user-permission *user*))
     (if (find (char perm 0) "aeiou")
         (%error "You need be an ~a to do this." perm)
         (%error "You need be a ~a to do this." perm))))

@@ -26,10 +26,9 @@
            #:list-channels
            #:delete-channel
            ;; Users
-           #:user-nickname
-           #:user-permissionn
            #:add-user
            #:list-users
+           #:user-permissionn
            ;; Commands
            #:define-command
            #:&unparsed-argument
