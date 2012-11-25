@@ -1,7 +1,7 @@
 ;;                                                               -*- Lisp -*-
 ;; utils.lisp -- Common utilities functions and macros
 ;;
-;; Copyright (C) 2009,2011 David Vazquez
+;; Copyright (C) 2009,2011,2012 David Vazquez
 ;; Copyright (C) 2010,2011 Mario Castelan Castro
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -17,18 +17,13 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
-(in-package :nilbot)
+(in-package :nilbot.utils)
 
 ;;;; Misc macros
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun symbolize (symbol1 symbol2)
     (intern (concatenate 'string (string symbol1) (string symbol2)))))
-
-(defmacro while (condition &body code)
-  `(do ()
-       ((not ,condition))
-     ,@code))
 
 (defmacro with-gensyms ((&rest vars) &body code)
   `(let ,(loop for i in vars
@@ -219,11 +214,6 @@
           (unless ,morep (return))
           ((lambda () ,@code)))))))
 
-;;; Anaphoric IF.
-(defmacro aif (condition then &optional else)
-  `(let ((it ,condition))
-     (if it ,then ,else)))
-
 ;;; Return a random element of the sequence SEQ.
 (defun random-element (seq)
   (elt seq (random (length seq))))
@@ -326,5 +316,14 @@
 (defun create-instance (class &rest args &key &allow-other-keys)
   (apply #'make-instance class args))
 
+
+;;; Check if the PREFIX string matches with some substrings in the
+;;; beginning of STRING, using TEST to compare the characters.
+(defun string-prefix-p (prefix string &key (test #'char=))
+  (declare (string string prefix))
+  (let ((offset (mismatch prefix string :test test)))
+    (if offset
+        (= offset (length prefix))
+        t)))
 
 ;; utils.lisp ends here

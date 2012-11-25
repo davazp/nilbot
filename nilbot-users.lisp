@@ -1,7 +1,7 @@
 ;;                                                               -*- Lisp -*-
 ;; nilbot-users.lisp --
 ;;
-;; Copyright (C) 2011 David Vazquez
+;; Copyright (C) 2011,2012 David Vazquez
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -38,12 +38,22 @@
 (defun find-user (name)
   (get-instance-by-value 'user 'nickname name))
 
+(defmethod user-nickname ((nickname string))
+  nickname)
+
+(defmethod user-permission ((nickname string))
+  (let ((user (find-user nickname)))
+    (if user
+        (user-permission user)
+        "nobody")))
+
 (defun add-user (name permission)
   (if (find-user name)
-      (%error "The user ~a exists.")
-      (create-instance 'user :nickname name :permission permission)))
+      (error "The user ~a exists." name)
+      (create-instance 'user :nickname name :permission permission))
+  (values))
 
 (defun list-users ()
-  (get-instances-by-class 'user))
+  (mapcar #'user-nickname (get-instances-by-class 'user)))
 
 ;;; nilbot-users.lisp ends here
