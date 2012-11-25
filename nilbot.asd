@@ -17,10 +17,19 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
 
+(defpackage :nilbot.system
+  (:use :cl :asdf)
+  (:export #:*version*))
+
+(in-package :nilbot.system)
+
+(defvar *version* "0.1")
+
 (defsystem :nilbot
   :name "nilbot"
   :description "An IRC Bot written in Common Lisp."
   :depends-on (:cl-irc :elephant :sqlite)
+  :version #.*version*
   :serial t
   :components
   ((:file "packages")

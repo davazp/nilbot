@@ -18,7 +18,6 @@
 ;;
 (in-package :nilbot)
 
-(defvar *version* '(0 1))
 (defvar *uptime*)
 
 ;;; Global descriptor of the IRC server connection

@@ -20,8 +20,8 @@
 
 (define-command version ()
     ((:documentation "Show the version of nilbot."))
-  (response "nilbot ~{~a~^.~} running on ~a (~a)"
-            *version*
+  (response "nilbot ~a running on ~a (~a)"
+            nilbot.system:*version*
             (lisp-implementation-type)
             (lisp-implementation-version)))
 
