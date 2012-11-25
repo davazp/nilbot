@@ -1,7 +1,7 @@
 ;;                                                               -*- Lisp -*-
 ;; nilbot.lisp --
 ;;
-;; Copyright (C) 2009,2011 David Vazquez
+;; Copyright (C) 2009,2011,2012 David Vazquez
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by

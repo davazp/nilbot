@@ -1,7 +1,7 @@
 ;;                                                               -*- Lisp -*-
 ;; nilbot-system.lisp --
 ;;
-;; Copyright (C) 2009,2011 David Vazquez
+;; Copyright (C) 2009,2011,2012 David Vazquez
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 (define-command version ()
     ((:documentation "Show the version of nilbot."))
   (response "nilbot ~a running on ~a (~a)"
-            nilbot.system:*version*
+            nilbot.asd:*version*
             (lisp-implementation-type)
             (lisp-implementation-version)))
 
@@ -147,7 +147,7 @@
 
 (define-command uptime ()
     ((:documentation "Tell how long has nilbot been running."))
-  (let ((seconds (- (get-universal-time) *uptime*)))
+  (let ((seconds (- (get-universal-time) nilbot::*uptime*)))
     (if (zerop seconds)
         (response "I have not been running!")
         (response "I have been running for ~a. (-:" (format-time seconds)))))

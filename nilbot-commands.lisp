@@ -1,7 +1,7 @@
 ;;                                                               -*- Lisp -*-
 ;; nilbot-commands.lisp --
 ;;
-;; Copyright (C) 2009,2011 David Vazquez
+;; Copyright (C) 2009,2011,2012 David Vazquez
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -230,6 +230,14 @@
   ((documentation
     :initarg :documentation
     :reader handler-documentation)
+   (module
+    :initform (let ((name (package-name *package*)))
+                (if (string-prefix-p "NILBOT" name)
+                    (and (< 6 (length name))
+                         (eql (char name 6) #\.)
+                         (subseq name 7))
+                    (error "Defining a command from a non-nilbot package.")))
+    :reader handler-module)
    (function
     :initarg :function
     :initform (required-arg)

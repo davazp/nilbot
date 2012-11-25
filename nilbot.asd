@@ -1,7 +1,7 @@
 ;;                                                               -*- Lisp -*-
 ;; nilbot.asd --
 ;;
-;; Copyright (C) 2009,2011 David Vazquez
+;; Copyright (C) 2009,2011,2012 David Vazquez
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -17,11 +17,11 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
 
-(defpackage :nilbot.system
+(defpackage :nilbot.asd
   (:use :cl :asdf)
   (:export #:*version*))
 
-(in-package :nilbot.system)
+(in-package :nilbot.asd)
 
 (defvar *version* "0.1")
 

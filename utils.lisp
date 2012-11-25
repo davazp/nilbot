@@ -1,7 +1,7 @@
 ;;                                                               -*- Lisp -*-
 ;; utils.lisp -- Common utilities functions and macros
 ;;
-;; Copyright (C) 2009,2011 David Vazquez
+;; Copyright (C) 2009,2011,2012 David Vazquez
 ;; Copyright (C) 2010,2011 Mario Castelan Castro
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -324,5 +324,14 @@
 (defun create-instance (class &rest args &key &allow-other-keys)
   (apply #'make-instance class args))
 
+
+;;; Check if the PREFIX string matches with some substrings in the
+;;; beginning of STRING, using TEST to compare the characters.
+(defun string-prefix-p (prefix string &key (test #'char=))
+  (declare (string string prefix))
+  (let ((offset (mismatch prefix string :test test)))
+    (if offset
+        (= offset (length prefix))
+        t)))
 
 ;; utils.lisp ends here
