@@ -16,6 +16,7 @@
     and initialize the database with:
 
     #+BEGIN_SRC common-lisp
+    (ql:quickload (list "sqlite" "cl-irc" "elephant"))
     (asdf:load-system :nilbot)
     #+END_SRC
 
@@ -29,6 +30,9 @@
 
     Finally, you can start nilbot with
     : (nilbot:start)
+
+    Make sure you're registered in the irc server. otherwise, it won't
+    recognize you
 
 *** Introduction
 
