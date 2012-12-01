@@ -1,7 +1,7 @@
 ;;                                                               -*- Lisp -*-
 ;; nilbot-commands.lisp --
 ;;
-;; Copyright (C) 2009,2011 David Vazquez
+;; Copyright (C) 2009,2011,2012 David Vazquez
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -22,9 +22,8 @@
 ;;; User who invoked nilbot, target of nilbot ouptut and the user
 ;;; permissions respectively. They are dynamically bound when a
 ;;; privmsg is received.
-(defvar *context-from*)
-(defvar *context-to*)
-(defvar *context-permission*)
+(defvar *user*)
+(defvar *recipient*)
 
 ;;; non-NIL if the server supports the capability IDENTIFY-MSG. We use
 ;;; this in order to be confident of the user and does not require
@@ -104,37 +103,38 @@
 
 ;;; High level functions.
 
-(defun more (&optional (to *context-to*))
+(defun more (&optional (to *recipient*))
   (store-pending-output to '---more---))
 
+;;; non-nil if the response must be immediate, instead of continuable.
+(defvar *immediate-response-p* nil)
+
 (defun response-to (to fmt &rest args)
-  (when (zerop (mod (1+ (count-pending-output to)) *max-output-lines*))
-    (more to))
-  (store-pending-output to (apply #'format nil fmt args)))
+  (cond
+    (*immediate-response-p*
+     (irc:privmsg *irc* to (apply #'format nil fmt args)))
+    (t
+     (when (zerop (mod (1+ (count-pending-output to)) *max-output-lines*))
+       (more to))
+     (store-pending-output to (apply #'format nil fmt args)))))
 
 (defun response (fmt &rest args)
-  (apply #'response-to *context-to* fmt args))
+  (apply #'response-to *recipient* fmt args))
 
-;;; Immediate output (no continuable)
 
-(defun immediate-response-to (to fmt &rest args)
-  (irc:privmsg *irc* to (apply #'format nil fmt args)))
-
-(defun immediate-response (fmt &rest args)
-  (irc:privmsg *irc* *context-to* (apply #'format nil fmt args)))
 
 (defun action-to (to fmt &rest args)
   (irc::ctcp *irc* to (format nil "ACTION ~?" fmt args)))
 
 (defun action (fmt &rest args)
-  (apply #'action-to *context-to* fmt args))
+  (apply #'action-to *recipient* fmt args))
 
 
-(defun nickname ()
+(defun myself ()
   (irc:nickname (irc:user *irc*)))
 
-(defun me-p (str)
-  (string= str (nickname)))
+(defun myselfp (str)
+  (string= str (myself)))
 
 (defun cap-handler (message)
   (destructuring-bind (target &optional response capabilities)
@@ -156,21 +156,6 @@
           (irc:arguments message)
         (process-message source target input)))))
 
-;;; IRC Errors. Taskbot captures these errors and report in IRC chat.
-(define-condition nilbot-error (simple-error)
-  nil)
-
-;;; Signal a nilbot error.
-(defun %error (fmt &rest args)
-  (signal 'nilbot-error :format-control fmt :format-arguments args))
-
-
-(defun get-user-permissions (nickname)
-  (let ((user (find-user nickname)))
-    (if user
-        (user-permission user)
-        "nobody")))
-
 (defun process-message (origin target message)
   ;; If the IDENTIFY-MSG is avalaible, we require the user is
   ;; identified in the services of the IRC server.
@@ -190,30 +175,23 @@
          (and (integerp posi) (zerop posi)))
        (setq prefix (length (format nil "~a: " (irc:nickname (irc:user *irc*))))))
       ;; queries
-      ((me-p target)
+      ((myselfp target)
        (setq prefix 0))
       (t
        (return-from process-message nil)))
     ;; Invoke the command
     (with-input-from-string (stream message :start prefix)
       (let ((cmd (parse-command stream))
-            (arg (subseq (or (read-line stream nil) " ") 1))
-            (to (if (me-p target) origin target)))
-        (let ((*context-from* origin)
-              (*context-to* to)
-              (*context-permission* (get-user-permissions origin)))
-          (handler-case
-              (run-command cmd arg)
-            (nilbot-error (error)
-              (unless (permission= *context-permission* "undesirable")
-                (apply #'immediate-response
-                       (simple-condition-format-control error)
-                       (simple-condition-format-arguments error))))
-            (program-error (error)
-              (declare (ignorable error))
-              ;; FIXME: program-error is more general that
-              ;; this. Implement me correctly!
-              (immediate-response "Bad argument numbers"))))))))
+            (arg (subseq (or (read-line stream nil) " ") 1)))
+        (let ((*user* origin)
+              (*recipient* (if (myselfp target) origin target)))
+          (unless (permission= (user-permission *user*) "undesirable")
+            (handler-case (run-command cmd arg)
+              (simple-error (err)
+                (let ((*immediate-response-p* t))
+                  (apply #'response
+                         (simple-condition-format-control err)
+                         (simple-condition-format-arguments err)))))))))))
 
 ;;; Permissions functions
 
@@ -237,10 +215,10 @@
 
 ;;; Require PERM priviledge level.
 (defun require-permission (perm)
-  (unless (permission<= perm *context-permission*)
+  (unless (permission<= perm (user-permission *user*))
     (if (find (char perm 0) "aeiou")
-        (%error "You need be an ~a to do this." perm)
-        (%error "You need be a ~a to do this." perm))))
+        (error "You need be an ~a to do this." perm)
+        (error "You need be a ~a to do this." perm))))
 
 
 
@@ -252,6 +230,14 @@
   ((documentation
     :initarg :documentation
     :reader handler-documentation)
+   (module
+    :initform (let ((name (package-name *package*)))
+                (if (string-prefix-p "NILBOT" name)
+                    (and (< 6 (length name))
+                         (eql (char name 6) #\.)
+                         (subseq name 7))
+                    (error "Defining a command from a non-nilbot package.")))
+    :reader handler-module)
    (function
     :initarg :function
     :initform (required-arg)
@@ -315,11 +301,11 @@
 (defun run-command (command argument-line)
   (let ((handler (find-handler command)))
     (when (and handler (not (handler-keep-last-output-p handler)))
-      (reset-pending-output *context-to*))
+      (reset-pending-output *recipient*))
     (handler-case
         (cond
           ((null handler)
-           (%error "Unknown command"))
+           (error "Unknown command"))
           ;; Commands with parsed arguments
           ((handler-parse-arguments-p handler)
            (with-input-from-string (stream argument-line)
@@ -329,7 +315,7 @@
           ((not (handler-parse-arguments-p handler))
            (funcall (handler-function handler) argument-line)))
       ;; (type-error (error)
-      ;;   (%error "The datum ~a was expected to be of type ~a."
+      ;;   (error "The datum ~a was expected to be of type ~a."
       ;;           (type-error-datum error)
       ;;           (type-error-expected-type error)))
       )
@@ -383,7 +369,7 @@
                      (destructuring-bind ,args ,arguments-var
                        ,@code))))
          (t
-          (%error "~a is an invalid subcommand." ,subcommand-var))))))
+          (error "~a is an invalid subcommand." ,subcommand-var))))))
 
 
 ;; nilbot-commands.lisp ends here

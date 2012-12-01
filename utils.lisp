@@ -1,7 +1,7 @@
 ;;                                                               -*- Lisp -*-
 ;; utils.lisp -- Common utilities functions and macros
 ;;
-;; Copyright (C) 2009,2011 David Vazquez
+;; Copyright (C) 2009,2011,2012 David Vazquez
 ;; Copyright (C) 2010,2011 Mario Castelan Castro
 ;;
 ;; This program is free software: you can redistribute it and/or modify
@@ -17,18 +17,13 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
-(in-package :nilbot)
+(in-package :nilbot.utils)
 
 ;;;; Misc macros
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun symbolize (symbol1 symbol2)
     (intern (concatenate 'string (string symbol1) (string symbol2)))))
-
-(defmacro while (condition &body code)
-  `(do ()
-       ((not ,condition))
-     ,@code))
 
 (defmacro with-gensyms ((&rest vars) &body code)
   `(let ,(loop for i in vars
@@ -57,45 +52,37 @@
 ;;; NOTE: You must not change the list destructively if you want that
 ;;; collector function works.
 ;;;
-(defmacro with-collectors ((&rest names) &body code)
-  (let ((names (mapcar #'mklist names))
-        ;; A list of lists of the form (NAME INITFORM BEGIN END FNAME),
-        ;; where BEGIN and END are the gensymed symbols of the
-        ;; first and the last cons of the collector. Note we use a
-        ;; special header cons.
-        (table nil))
-    ;; Fill the table
-    (dolist (collector names)
-      (destructuring-bind (name &optional initform fname) collector
-        (push (list name
-                    initform
-                    (gensym)
-                    (gensym)
-                    (or fname (symbolize 'collect- name)))
-              table)))
-    (macrolet (;; Map through collectors binding NAME INITFORM BEGIN
-               ;; and END variables, collecting the results in a list.
-               (map* (form)
-                 `(loop for (name initform begin end fname)
-                        in table
-                        collect ,form)))
-      ;; Macroexpansion
-      `(let ,(map* `(,begin (cons :collector ,initform)))
-         (let ,(map* `(,end (last ,begin)))
-           (symbol-macrolet ,(map* `(,name (cdr ,begin)))
-             (flet ,(map* `(,fname (value)
-                                   (setf (cdr ,end) (list value))
-                                   (setf ,end (cdr ,end))
-                                   (cdr ,begin)))
-               ,@code)))))))
+(defmacro with-named-collector% ((accumulator initial collector) &body body)
+  (check-type accumulator symbol)
+  (check-type collector symbol)
+  (let ((head (gensym))
+        (tail (gensym)))
+    `(let* ((,head (cons :accumulator ,initial))
+            (,tail ,head))
+       (flet ((,collector (item)
+                (let ((c (list item)))
+                  (setf (cdr ,tail) c)
+                  (setf ,tail c))))
+         (symbol-macrolet ((,accumulator (cdr ,head)))
+           ,@body)))))
 
-;;; Run CODE which an anonmoys collector which a collector function
-;;; named `collect'.
-(defmacro with-collect (&body code)
-  (with-gensyms (name)
-    `(with-collectors ((,name nil collect))
-       ,@code
-       ,name)))
+(defmacro with-collect (&body body)
+  (let ((accumulator (gensym)))
+    `(with-named-collector% (,accumulator nil collect)
+       ,@body
+       ,accumulator)))
+
+(defmacro with-collectors (names &body body)
+  (if (null names)
+      `(progn ,@body)
+      (destructuring-bind (name
+                           &optional
+                           initial
+                           (collector (intern (format nil "COLLECT-~a" (string name)))))
+          (mklist (car names))
+        `(with-named-collector% (,name ,initial ,collector)
+           (with-collectors ,(cdr names)
+             ,@body)))))
 
 
 ;;;; Declarations and definitions facilities
@@ -227,11 +214,6 @@
           (unless ,morep (return))
           ((lambda () ,@code)))))))
 
-;;; Anaphoric IF.
-(defmacro aif (condition then &optional else)
-  `(let ((it ,condition))
-     (if it ,then ,else)))
-
 ;;; Return a random element of the sequence SEQ.
 (defun random-element (seq)
   (elt seq (random (length seq))))
@@ -334,5 +316,14 @@
 (defun create-instance (class &rest args &key &allow-other-keys)
   (apply #'make-instance class args))
 
+
+;;; Check if the PREFIX string matches with some substrings in the
+;;; beginning of STRING, using TEST to compare the characters.
+(defun string-prefix-p (prefix string &key (test #'char=))
+  (declare (string string prefix))
+  (let ((offset (mismatch prefix string :test test)))
+    (if offset
+        (= offset (length prefix))
+        t)))
 
 ;; utils.lisp ends here

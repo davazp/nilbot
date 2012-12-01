@@ -1,3 +1,5 @@
+#+startup showall
+
 * nilbot
 
   nilbot is an IRC Bot written in Common Lisp.
@@ -71,9 +73,9 @@
 
 ***** Permissions
       Nilbot provides different categories of users: /undesirable/,
-      /nobody/, /user/ and /admin/. By default, an user is a 'nobody'.
+      /nobody/, /user/ and /admin/. By default, a user is a 'nobody'.
       The granted permissions to each category is inclusive. In other
       words, each category adds priviledges to the previous ones. The
       lowest category /undesirable/ is special. Nilbot will ignore
-      every request of /undesirable/ users. Register an user as
+      every request of /undesirable/ users. Register a user as
       /undesirable/ to ban it.

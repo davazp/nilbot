@@ -1,7 +1,7 @@
 ;;                                                               -*- Lisp -*-
 ;; nilbot.lisp --
 ;;
-;; Copyright (C) 2009,2011 David Vazquez
+;; Copyright (C) 2009,2011,2012 David Vazquez
 ;;
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 ;;
 (in-package :nilbot)
 
-(defvar *version* '(0 1))
 (defvar *uptime*)
 
 ;;; Global descriptor of the IRC server connection
@@ -28,6 +27,7 @@
 ;;; This is an internal interface of cl-irc, however we need cap
 ;;; support really if the server supports it.
 (irc::create-irc-message-classes (:cap))
+(unexport 'irc-cap-message)
 
 (unless *store-controller*
   (open-store `(:CLSQL (:SQLITE3 ,(namestring *database-pathname*)))))
@@ -49,7 +49,7 @@
   (irc::send-irc-message *irc* :cap "req" "identify-msg")
   (mapc #'join channels)
   (dolist (chan (list-channels))
-    (join (channel-name chan)))
+    (join chan))
   (irc:read-message-loop *irc*))
 
 (defun start (&rest options &key &allow-other-keys)
