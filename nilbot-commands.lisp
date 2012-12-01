@@ -24,6 +24,7 @@
 ;;; privmsg is received.
 (defvar *user*)
 (defvar *recipient*)
+(defvar *receive-message-hook* '(process-message))
 
 ;;; non-NIL if the server supports the capability IDENTIFY-MSG. We use
 ;;; this in order to be confident of the user and does not require
@@ -154,7 +155,8 @@
     (let ((source (irc:source message)))
       (destructuring-bind (target input)
           (irc:arguments message)
-        (process-message source target input)))))
+	(dolist (hook *receive-message-hook*)
+	  (funcall hook source target input))))))
 
 (defun process-message (origin target message)
   ;; If the IDENTIFY-MSG is avalaible, we require the user is
