@@ -62,10 +62,6 @@
 (defun all-links ()
   (get-instances-by-class 'link))
 
-(defun match-string (key instance)
-  (format t "~a"
-	  (slot-value instance 'url)))
-
 (defun find-links-by-substring (subs)
   (let* ((links (all-links)))
       (remove-if-not (lambda (x)
@@ -93,6 +89,7 @@
 (pushnew 'look-for-link *receive-message-hook*)
 
 (defun look-for-link (source target input)
+  (declare (ignore target))
   (when (search "http" input)
     (do-matches-as-strings (match "(https?://[^ ]+)" input)
       (create-link match source input))))
