@@ -44,7 +44,7 @@
            #:string-prefix-p))
 
 (defpackage :nilbot
-  (:use :cl :elephant :nilbot.utils :cl-ppcre)
+  (:use :cl :elephant :nilbot.utils)
   (:export #:start
            #:stop
            ;; Channels

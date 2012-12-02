@@ -18,9 +18,9 @@
 ;;
 
 (defpackage :nilbot.linkstore
-  (:use :cl :elephant :nilbot :nilbot.utils))
-(in-package :nilbot)
+  (:use :cl :elephant :cl-ppcre :nilbot :nilbot.utils))
 
+(in-package :nilbot.linkstore)
 
 (defvar *link-count* 0)
 
