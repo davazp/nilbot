@@ -91,12 +91,26 @@
 	    (response "~a: ~a" *user* (slot-value link 'url)))
 	  (find-links-by-substring substring)))
 
+<<<<<<< HEAD
 (pushnew 'look-for-link *receive-message-hook*)
 ;(setq *receive-message-hook* '(process-message look-for-link))
 
+=======
+(push 'look-for-link *receive-message-hook*)
+(setq look-for-link '(process-message 'look-for-link))
+>>>>>>> a3460e4ffdb9a1ad4d48cc01ee316c1ef88b60ee
 (defun look-for-link (source target input)
   (when (search "http://" input)
     (do-matches-as-strings (match "(http://[^ ]+)" input)
       (create-link match source input))))
 
+<<<<<<< HEAD
 ;;; nilbot-linkstore.lisp ends here
+=======
+
+;; (in-package :nilbot.linkstore)
+;; (define-command getlinks ()
+;;     ()
+;;   (let ((first-url (get-instance-by-value 'link))))
+;;   (response "~a" url))
+>>>>>>> a3460e4ffdb9a1ad4d48cc01ee316c1ef88b60ee
