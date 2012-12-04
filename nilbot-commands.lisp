@@ -316,7 +316,7 @@
     ((char= (char name 0) #\#)
      (setf (used-modules (find-channel name)) new-value))
     (t
-     (setf (used-modules (find-user name)) new-value)))))
+     (setf (used-modules (find-user name)) new-value))))
 
 
 (defun run-command (command argument-line)
