@@ -29,7 +29,11 @@
    (permission
     :initarg :permission
     :type string
-    :accessor user-permission)))
+    :accessor user-permission)
+   (used-modules
+    :initform nil
+    :type list
+    :accessor used-modules)))
 
 (defmethod print-object ((x user) stream)
   (print-unreadable-object (x stream :type t)

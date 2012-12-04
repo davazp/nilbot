@@ -24,7 +24,11 @@
     :initarg :name
     :type string
     :reader channel-name
-    :index t)))
+    :index t)
+   (used-modules
+    :initform nil
+    :type list
+    :accessor used-modules)))
 
 (defun find-channel (name)
   (get-instance-by-value 'channel 'name name))

@@ -300,13 +300,34 @@
         (error "The command `~a' does not exist." command))))
 
 
+(defmethod used-modules ((name string))
+  (cond
+    ((zerop (length name))
+     nil)
+    ((char= (char name 0) #\#)
+     (used-modules (find-channel name)))
+    (t
+     (used-modules (find-user name)))))
+
+(defmethod (setf used-modules) (new-value (name string))
+  (cond
+    ((zerop (length name))
+     nil)
+    ((char= (char name 0) #\#)
+     (setf (used-modules (find-channel name)) new-value))
+    (t
+     (setf (used-modules (find-user name)) new-value)))))
+
+
 (defun run-command (command argument-line)
   (let ((handler (find-handler command)))
     (when (and handler (not (handler-keep-last-output-p handler)))
       (reset-pending-output *recipient*))
     (handler-case
         (cond
-          ((null handler)
+          ((or (null handler)
+               (and (handler-module handler)
+                    (not (find (handler-module handler) (used-modules *recipient*)))))
            (error "Unknown command"))
           ;; Commands with parsed arguments
           ((handler-parse-arguments-p handler)

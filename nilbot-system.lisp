@@ -71,7 +71,9 @@
 (defun list-commands ()
   (with-collectors (commands)
     (do-hash-table (name handler) *command-handlers*
-      (when (handlerp handler)
+      (when (and(handlerp handler)
+                (or (null (handler-module handler))
+                    (find (handler-module handler) (used-modules *recipient*) :test #'equalp)))
         (collect-commands name)))
     (sort commands #'alphabetically<=)))
 
@@ -92,7 +94,9 @@
   (let ((handler (find-handler command)))
     (and handler
          (permission<= (handler-permission handler) (user-permission *user*))
-         (handler-documentation handler))))
+         (handler-documentation handler)
+         (or (null (handler-module handler))
+             (find (handler-module handler) (used-modules *recipient*) :test #'equalp)))))
 
 (define-command help (&optional command)
     ((:documentation "Show documentation about a command.")
@@ -123,7 +127,9 @@
   (do-hash-table (command handler) *command-handlers*
     ;; Require it is a command (not an alias) and it is avalaible.
     (when (and (handlerp handler)
-               (permission<= (handler-permission handler) (user-permission *user*)))
+               (permission<= (handler-permission handler) (user-permission *user*))
+               (or (null (handler-mdule handler))
+                   (find (handler-module handler) (used-modules *recipient*) :test #'equalp)))
       (let ((docstring (handler-documentation handler)))
         (when docstring
           (when (every (lambda (w) (search w docstring :test #'char-ci=)) words)
@@ -240,5 +246,27 @@ USER APPPOINT <nickname> <permission>
     ((:documentation "Show pending output")
      (:keep-last-output-p t))
   (continue-pending-output *recipient*))
+
+
+;;; Module system
+
+;;; TODO: Move to nilbot-commands.lisp, together with routines about
+;;; documentation and so on.
+
+(define-command use (name)
+    ((:documentation "Use a module in the current channel/user")
+     (:permission "admin"))
+  (action "uses ~{~a~#[~; and ~:;, ~]~}."
+          (push (string-upcase name) (used-modules *recipient*))))
+
+(define-command unuse (name)
+    ((:documentation "Do not use a module in the current channel/user")
+     (:permission "admin"))
+  (let ((modules (delete name (used-modules *recipient*) :test #'equalp)))
+    (setf (used-modules *recipient*) modules)
+    (if (null modules)
+        (action "does not use any module.")
+        (action "uses ~{~a~#[~; and ~:;, ~]~}." modules))))
+
 
 ;;; nilbot-system.lisp ends here
