@@ -28,7 +28,7 @@
 (defsystem :nilbot
   :name "nilbot"
   :description "An IRC Bot written in Common Lisp."
-  :depends-on (:cl-irc :elephant :sqlite)
+  :depends-on (:cl-irc :elephant :sqlite :cl-ppcre)
   :version #.*version*
   :serial t
   :components
@@ -44,6 +44,7 @@
    (:file "nilbot-system")
    (:module "contrib"
             :components
-            ((:file "nilbot-tracker")))))
+            ((:file "nilbot-tracker")
+             (:file "nilbot-linkstore")))))
 
 ;; nilbot.asd ends here

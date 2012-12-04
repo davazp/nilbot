@@ -47,6 +47,7 @@
   (:use :cl :elephant :nilbot.utils)
   (:export #:start
            #:stop
+           #:*receive-message-hook*
            ;; Channels
            #:add-channel
            #:list-channels
