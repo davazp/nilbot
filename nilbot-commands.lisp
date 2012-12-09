@@ -327,7 +327,7 @@
         (cond
           ((or (null handler)
                (and (handler-module handler)
-                    (not (find (handler-module handler) (used-modules *recipient*)))))
+                    (not (find (handler-module handler) (used-modules *recipient*) :test #'equalp))))
            (error "Unknown command"))
           ;; Commands with parsed arguments
           ((handler-parse-arguments-p handler)

@@ -94,9 +94,9 @@
   (let ((handler (find-handler command)))
     (and handler
          (permission<= (handler-permission handler) (user-permission *user*))
-         (handler-documentation handler)
          (or (null (handler-module handler))
-             (find (handler-module handler) (used-modules *recipient*) :test #'equalp)))))
+             (find (handler-module handler) (used-modules *recipient*) :test #'equalp))
+         (handler-documentation handler))))
 
 (define-command help (&optional command)
     ((:documentation "Show documentation about a command.")
